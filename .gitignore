@@ -1,0 +1,53 @@
+#Dataset files:
+*.sdf
+*.smi
+*.xlsx
+*.xls
+data/
+#*.txt
+
+#Image files:
+*.tiff
+*.png
+
+# Compiled Python files:
+__pycache__/
+*.py[cod]
+*.pyc
+*$py.class
+
+#Pytest related:
+.hypothesis/
+.pytest_cache/
+
+# Scripts and other log files:
+*.log
+
+
+# Jupyter Notebook:
+.ipynb_checkpoints
+
+
+
+
+# Environments:
+.python-version
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.idea/
+
+
+#VS code related:
+.vscode/
+
+#Coverage related
+.coverage
+htmlcov/
+
+
+
