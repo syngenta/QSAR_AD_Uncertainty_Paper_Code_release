@@ -2,7 +2,7 @@
 
 The code provided here was written to generate the results reported in the following publication:
 
-Zied Hosni, Valerie J. Gillet, Richard L. Marchese Robinson, "How do uncertainty estimation methods perform for out-of-domain compounds according to different applicability domain methods ?" (Article In Preparation)
+Zied Hosni, Valerie J. Gillet, Richard L. Marchese Robinson, "How do uncertainty estimation methods perform for out-of-domain compounds according to different applicability domain methods ?" (Article Submitted to Journal of Cheminformatics on 13th May 2025)
 
 The code which is presented here has been organized into folders described under "Code Folders".
 
