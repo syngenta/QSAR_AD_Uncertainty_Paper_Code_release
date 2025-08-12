@@ -39,7 +39,7 @@ from modelsADuncertaintyPkg.utils.basic_utils import neverEndingDefaultDict,crea
 #----------------------------------------------------------------------------
 top_scripts_dir = os.path.dirname(os.path.dirname(dir_of_this_script))
 sys.path.append(top_scripts_dir)
-from PublicDataModelling.general_purpose.common_globals import regression_dataset_names,ds_matched_to_ep_list,ds_matched_to_exemplar_ep_list,get_ds_matched_to_other_endpoints_of_interest
+from PublicDataModelling.general_purpose.common_globals import regression_dataset_names,ds_matched_to_ep_list,ds_matched_to_exemplar_ep_list
 from recommended_defaults import ep_type_matched_to_default_AD_uncertainty_methods
 #from consistent_parameters_for_all_modelling_runs import classification_stats_in_desired_order,regression_stats_in_desired_order
 from consistent_parameters_for_all_modelling_runs import regression_metric_to_expected_sub_1_minus_sub_2_sign,classifcation_metric_to_expected_sub_1_minus_sub_2_sign
@@ -51,18 +51,18 @@ from summary_plots_script_functions import one_tail_key,two_tail_key,raw_p_val_c
 from summary_plots_global_min_max import globally_observed_min_max_metric_and_shifts_dict
 #-------------
 top_res_dir = os.path.sep.join([os.path.dirname(os.path.dirname(pkg_dir)),'PublicData'])
-out_dir = os.path.sep.join([top_res_dir,'Other_EPs_Model_Plots'])
-dir_with_merged_raw_stats = os.path.sep.join([top_res_dir,'OtherMergedStats'])
-classification_merged_raw_stats_csv = os.path.sep.join([dir_with_merged_raw_stats,'Other_Endpoints_Classification_Stats.csv'])
-regression_merged_raw_stats_csv = os.path.sep.join([dir_with_merged_raw_stats,'Other_Endpoints_Regression_Stats.csv'])
+out_dir = os.path.sep.join([top_res_dir,'All_EPs_Model_Plots'])
+dir_with_merged_raw_stats = os.path.sep.join([top_res_dir,'AllMergedStats'])
+classification_merged_raw_stats_csv = os.path.sep.join([dir_with_merged_raw_stats,'All_Endpoints_Classification_Stats.csv'])
+regression_merged_raw_stats_csv = os.path.sep.join([dir_with_merged_raw_stats,'All_Endpoints_Regression_Stats.csv'])
 
 
 
 dict_of_one_tail_adjusted_p_vals_files = defaultdict(list)
 dict_of_two_tail_adjusted_p_vals_files = defaultdict(list)
 for modelling_type in ['Classification','Regression']:
-    dict_of_one_tail_adjusted_p_vals_files[modelling_type].append(os.path.sep.join([top_res_dir,'Other_EPs_AD_P_vals',f'one_tail_{modelling_type}_PVals_GlobalAdjusted.csv']))
-    dict_of_two_tail_adjusted_p_vals_files[modelling_type].append(os.path.sep.join([top_res_dir,'Other_EPs_AD_P_vals',f'{modelling_type}_PVals_GlobalAdjusted.csv']))
+    dict_of_one_tail_adjusted_p_vals_files[modelling_type].append(os.path.sep.join([top_res_dir,'All_EPs_AD_P_vals',f'one_tail_{modelling_type}_PVals_GlobalAdjusted.csv']))
+    dict_of_two_tail_adjusted_p_vals_files[modelling_type].append(os.path.sep.join([top_res_dir,'All_EPs_AD_P_vals',f'{modelling_type}_PVals_GlobalAdjusted.csv']))
 
 
 
@@ -73,11 +73,7 @@ def main():
 
     createOrReplaceDir(out_dir)
 
-    ds_matched_to_other_endpoints_not_in_exemplar_endpoints_list = get_ds_matched_to_other_endpoints_of_interest(ds_matched_to_ep_list,ds_matched_to_exemplar_ep_list)
-
-   
-
-    for dataset in ds_matched_to_other_endpoints_not_in_exemplar_endpoints_list.keys():
+    for dataset in ds_matched_to_ep_list.keys():
 
         print(f'dataset={dataset}')
 
@@ -93,9 +89,9 @@ def main():
         regression_stats = list(regression_metric_to_expected_sub_1_minus_sub_2_sign.keys())
         #----------------------------
 
-        metrics_matched_to_test_set_type_to_endpoints_to_all_fold_seed_in_and_out_ad_vals = get_metrics_matched_to_test_set_type_to_endpoints_to_all_fold_seed_in_and_out_ad_vals(dataset,ds_matched_to_other_endpoints_not_in_exemplar_endpoints_list,merged_raw_stats_file,regression_dataset_names,classification_stats,regression_stats,ep_type_matched_to_default_AD_uncertainty_methods,endpoint_col,test_set_type_col,fold_col,rnd_seed_col,alg_col,ad_col,ad_subset_col)
+        metrics_matched_to_test_set_type_to_endpoints_to_all_fold_seed_in_and_out_ad_vals = get_metrics_matched_to_test_set_type_to_endpoints_to_all_fold_seed_in_and_out_ad_vals(dataset,ds_matched_to_ep_list,merged_raw_stats_file,regression_dataset_names,classification_stats,regression_stats,ep_type_matched_to_default_AD_uncertainty_methods,endpoint_col,test_set_type_col,fold_col,rnd_seed_col,alg_col,ad_col,ad_subset_col)
 
-        shift_metrics_matched_to_test_set_type_to_endpoints_to_all_fold_seed_in_and_out_ad_vals = get_shift_metrics_matched_to_test_set_type_to_endpoints_to_all_fold_seed_in_and_out_ad_vals(dataset,ds_matched_to_other_endpoints_not_in_exemplar_endpoints_list,merged_raw_stats_file,regression_dataset_names,classification_stats,regression_stats,ep_type_matched_to_default_AD_uncertainty_methods,endpoint_col,test_set_type_col,fold_col,rnd_seed_col,alg_col,ad_col,ad_subset_col)
+        shift_metrics_matched_to_test_set_type_to_endpoints_to_all_fold_seed_in_and_out_ad_vals = get_shift_metrics_matched_to_test_set_type_to_endpoints_to_all_fold_seed_in_and_out_ad_vals(dataset,ds_matched_to_ep_list,merged_raw_stats_file,regression_dataset_names,classification_stats,regression_stats,ep_type_matched_to_default_AD_uncertainty_methods,endpoint_col,test_set_type_col,fold_col,rnd_seed_col,alg_col,ad_col,ad_subset_col)
         
         for metric in metrics_matched_to_test_set_type_to_endpoints_to_all_fold_seed_in_and_out_ad_vals.keys():
             

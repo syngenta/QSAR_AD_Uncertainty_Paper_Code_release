@@ -870,7 +870,7 @@ def filter_to_only_keep_default_AD_params_results(raw_df,ad_params_col=ad_params
     print(f'default_ad_params_str={default_ad_params_str}')
 
     filtered_df = raw_df[raw_df[ad_params_col].isin([default_ad_params_str])]
-
+    
     filtered_df = filtered_df.drop(ad_params_col,axis=1)
 
     print(f'After dropping non-default AD parameters results, there are {filtered_df.shape[0]} results!')

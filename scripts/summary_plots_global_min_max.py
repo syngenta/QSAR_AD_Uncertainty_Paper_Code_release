@@ -40,11 +40,11 @@ top_res_dir = os.path.dirname(os.path.dirname(os.path.dirname(this_dir)))
 
 
 all_relevant_class_stats_csvs = []
-all_relevant_class_stats_csvs.append(os.path.sep.join([top_res_dir,'PublicData','OtherMergedStats','Other_Endpoints_Classification_Stats.csv']))
+all_relevant_class_stats_csvs.append(os.path.sep.join([top_res_dir,'PublicData','AllMergedStats','All_Endpoints_Classification_Stats.csv']))
 all_relevant_class_stats_csvs.append(os.path.sep.join([top_res_dir,'SyngentaData','Merged_Stats','SYN_DT50_Classification_Stats.csv']))
 
 all_relevant_reg_stats_csvs = []
-all_relevant_reg_stats_csvs.append(os.path.sep.join([top_res_dir,'PublicData','OtherMergedStats','Other_Endpoints_Regression_Stats.csv']))
+all_relevant_reg_stats_csvs.append(os.path.sep.join([top_res_dir,'PublicData','AllMergedStats','All_Endpoints_Regression_Stats.csv']))
 all_relevant_reg_stats_csvs.append(os.path.sep.join([top_res_dir,'SyngentaData','Merged_Stats','SYN_logP_Regression_Stats.csv']))
 
 def get_overall_limit(dfs_list,stat_name,limit_func):

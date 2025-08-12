@@ -40,8 +40,16 @@ import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use('Agg')
 
+def make_sure_pca_components_not_set_too_high(X,pca_components):
+    #understanding of the need for this is based on consulting this: https://stackoverflow.com/questions/51040075/why-sklearn-pca-needs-more-samples-than-new-featuresn-components#:~:text=If%20you%20have%20less%20samples,components%20would%20be%20useless%20noise. (21/07/25)
+    max_no_pca_components_which_do_not_capture_noise = min(X.shape[0],X.shape[1])
 
-def get_tsne_coords_from_fp_bit_vector_array(fp_bit_vector_array,use_pca_first=True,pca_components=50,tsne_components=2,tsne_perplexity=50,tsne_n_iter=5000,tsne_method='exact',tsne_metric="jaccard",learning_rate=200.0,rand_state=42):
+    if pca_components > max_no_pca_components_which_do_not_capture_noise:
+        return max_no_pca_components_which_do_not_capture_noise
+    else:
+        return pca_components
+
+def get_tsne_coords_from_fp_bit_vector_array(fp_bit_vector_array,use_pca_first=True,pca_components=50,tsne_components=2,tsne_perplexity=50,tsne_n_iter=5000,tsne_method='exact',tsne_metric="jaccard",learning_rate=200.0,rand_state=42,tsne_theta=0.2):
     
 
     #---------------------
@@ -51,7 +59,9 @@ def get_tsne_coords_from_fp_bit_vector_array(fp_bit_vector_array,use_pca_first=T
     X = fp_bit_vector_array
 
     if use_pca_first:
-        pca_transformer = PCA(n_components=pca_components,random_state=rand_state)
+        _pca_components_to_use = make_sure_pca_components_not_set_too_high(X=X,pca_components=pca_components)
+
+        pca_transformer = PCA(n_components=_pca_components_to_use,random_state=rand_state)
 
         X_ready_for_tsne = pca_transformer.fit_transform(X)
 
@@ -62,13 +72,13 @@ def get_tsne_coords_from_fp_bit_vector_array(fp_bit_vector_array,use_pca_first=T
 
         percentage_of_var_in_pca_components = None
     
-    tsne_transformer = TSNE(n_components=tsne_components,n_iter=tsne_n_iter,method=tsne_method,perplexity=tsne_perplexity,metric=tsne_metric,learning_rate=learning_rate,random_state=rand_state)
+    tsne_transformer = TSNE(n_components=tsne_components,n_iter=tsne_n_iter,method=tsne_method,perplexity=tsne_perplexity,metric=tsne_metric,learning_rate=learning_rate,random_state=rand_state,angle=tsne_theta)
 
     X_tsne_coords = tsne_transformer.fit_transform(X_ready_for_tsne)
 
     return X_tsne_coords,percentage_of_var_in_pca_components
 
-def add_tsne_coords_to_dataset_with_fp_bit_vector_array_and_subset_labels(dataset_df,subset_col,tsne_coords_column_names=['TSNE1','TSNE2'],use_pca_first=True,pca_components=50,tsne_components=2,tsne_perplexity=50,tsne_n_iter=5000,tsne_method='exact',tsne_metric="jaccard",learning_rate=200.0,rand_state=42):    
+def add_tsne_coords_to_dataset_with_fp_bit_vector_array_and_subset_labels(dataset_df,subset_col,tsne_coords_column_names=['TSNE1','TSNE2'],use_pca_first=True,pca_components=50,tsne_components=2,tsne_perplexity=50,tsne_n_iter=5000,tsne_method='exact',tsne_metric="jaccard",learning_rate=200.0,rand_state=42,tsne_theta=0.2):    
     #--------------------------
     assert isinstance(dataset_df,pd.DataFrame),type(dataset_df)
     assert dataset_df.index.tolist() == list(range(dataset_df.shape[0]))
@@ -82,7 +92,7 @@ def add_tsne_coords_to_dataset_with_fp_bit_vector_array_and_subset_labels(datase
     assert fp_bit_vector_array.shape[1] == (dataset_df.shape[1]-1)
 
 
-    X_tsne_coords,percentage_of_var_in_pca_components = get_tsne_coords_from_fp_bit_vector_array(fp_bit_vector_array,use_pca_first,pca_components,tsne_components,tsne_perplexity,tsne_n_iter,tsne_method,tsne_metric,learning_rate,rand_state)
+    X_tsne_coords,percentage_of_var_in_pca_components = get_tsne_coords_from_fp_bit_vector_array(fp_bit_vector_array,use_pca_first,pca_components,tsne_components,tsne_perplexity,tsne_n_iter,tsne_method,tsne_metric,learning_rate,rand_state,tsne_theta)
 
 
     df_with_tsne_coords = pd.DataFrame(X_tsne_coords)
@@ -102,9 +112,9 @@ def add_tsne_coords_to_dataset_with_fp_bit_vector_array_and_subset_labels(datase
 
     return df_with_tsne_coords,percentage_of_var_in_pca_components
 
-def get_tsne_plot_of_dataset_with_fp_bit_vector_array_and_subset_labels(plot_name_prefix,title_prefix,dataset_df,subset_col,tsne_coords_column_names=['TSNE1','TSNE2'],use_pca_first=True,pca_components=100,tsne_components=2,tsne_perplexity=30.0,tsne_n_iter=1000,tsne_method='barnes_hut',tsne_metric="euclidean",learning_rate=200.0,rand_state=42,opaqueness=0.20,edgecolor=None):
+def get_tsne_plot_of_dataset_with_fp_bit_vector_array_and_subset_labels(plot_name_prefix,title_prefix,dataset_df,subset_col,tsne_coords_column_names=['TSNE1','TSNE2'],use_pca_first=True,pca_components=200,tsne_components=2,tsne_perplexity=30.0,tsne_n_iter=1000,tsne_method='barnes_hut',tsne_metric="euclidean",learning_rate=200.0,rand_state=42,opaqueness=0.20,edgecolor=None,tsne_theta=0.0):
 
-    df_with_tsne_coords,percentage_of_var_in_pca_components = add_tsne_coords_to_dataset_with_fp_bit_vector_array_and_subset_labels(dataset_df,subset_col,tsne_coords_column_names,use_pca_first,pca_components,tsne_components,tsne_perplexity,tsne_n_iter,tsne_method,tsne_metric,learning_rate,rand_state)
+    df_with_tsne_coords,percentage_of_var_in_pca_components = add_tsne_coords_to_dataset_with_fp_bit_vector_array_and_subset_labels(dataset_df,subset_col,tsne_coords_column_names,use_pca_first,pca_components,tsne_components,tsne_perplexity,tsne_n_iter,tsne_method,tsne_metric,learning_rate,rand_state,tsne_theta)
 
     sns.set_style("white")
 
@@ -125,7 +135,7 @@ def get_tsne_plot_of_dataset_with_fp_bit_vector_array_and_subset_labels(plot_nam
 
     plt.tight_layout()
     
-    plot_name = f'{plot_name_prefix}_pca={use_pca_first}_pcaN={pca_components}_tsneP={tsne_perplexity}_tsneITER={tsne_n_iter}_tsneMETH={tsne_method}_tsneM={tsne_metric}_tsneLR={learning_rate}_rs={rand_state}.tiff'
+    plot_name = f'{plot_name_prefix}_pca={use_pca_first}_pcaN={pca_components}_tsneP={tsne_perplexity}_tsneITER={tsne_n_iter}_tsneMETH={tsne_method}_tsneM={tsne_metric}_tsneLR={learning_rate}_rs={rand_state}_tsneTHETA={tsne_theta}.tiff'
 
     plt.savefig(plot_name, transparent=True)
     plt.close('all')

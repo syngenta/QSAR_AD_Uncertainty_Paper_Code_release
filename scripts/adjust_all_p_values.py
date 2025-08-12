@@ -36,13 +36,19 @@ overall_top_public_data_dir = os.path.sep.join([os.path.dirname(os.path.dirname(
 overall_top_syn_data_dir = os.path.sep.join([os.path.dirname(os.path.dirname(pkg_dir)),'SyngentaData'])
 #------------------------------------------------
 
-def get_all_raw_p_vals_df_dict(all_top_dirs_containing_raw_p_vals_csvs=[overall_top_public_data_dir,overall_top_syn_data_dir],p_vals_csv_suffix='_PVals.csv'):
+def get_all_raw_p_vals_df_dict(one_tail_family,all_top_dirs_containing_raw_p_vals_csvs=[overall_top_public_data_dir,overall_top_syn_data_dir],p_vals_csv_suffix='_PVals.csv'):
 
     all_raw_p_vals_df_dict = {}
+    
     for top_dataset_dir in all_top_dirs_containing_raw_p_vals_csvs:
         for subdir in report_subdirs_recursively(dir_=top_dataset_dir,absolute_names=True):
             #print(f'Looking for p-value files inside subdir={subdir}')
-            for p_val_file in glob.glob(os.path.sep.join([subdir,f'*{p_vals_csv_suffix}'])):
+            if one_tail_family:
+                subdir_specific_relevant_p_vals_files = glob.glob(os.path.sep.join([subdir,f'one_tail_*{p_vals_csv_suffix}']))
+            else:
+                subdir_specific_relevant_p_vals_files = [f for f in glob.glob(os.path.sep.join([subdir,f'*{p_vals_csv_suffix}'])) if not 'one_tail_' in f]
+
+            for p_val_file in subdir_specific_relevant_p_vals_files:
                 print(f'Considering p_val_file={p_val_file}')
                 all_raw_p_vals_df_dict[p_val_file] = pd.read_csv(p_val_file)
 
@@ -106,11 +112,13 @@ def write_all_adjusted_p_vals_csvs(all_adjusted_p_vals_df_dict,adjusted_p_vals_c
 def main():
     print('THE START')
 
-    all_raw_p_vals_df_dict = get_all_raw_p_vals_df_dict(all_top_dirs_containing_raw_p_vals_csvs=[overall_top_public_data_dir,overall_top_syn_data_dir],p_vals_csv_suffix='_PVals.csv')
+    for one_tail_family in [True,False]:
 
-    all_adjusted_p_vals_df_dict = adjust_all_p_values(all_raw_p_vals_df_dict)
+        all_raw_p_vals_df_dict = get_all_raw_p_vals_df_dict(one_tail_family,all_top_dirs_containing_raw_p_vals_csvs=[overall_top_public_data_dir,overall_top_syn_data_dir],p_vals_csv_suffix='_PVals.csv')
 
-    write_all_adjusted_p_vals_csvs(all_adjusted_p_vals_df_dict,adjusted_p_vals_csv_suffix='_GlobalAdjusted.csv')
+        all_adjusted_p_vals_df_dict = adjust_all_p_values(all_raw_p_vals_df_dict)
+
+        write_all_adjusted_p_vals_csvs(all_adjusted_p_vals_df_dict,adjusted_p_vals_csv_suffix='_GlobalAdjusted.csv')
 
 
     print('THE END')
