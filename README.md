@@ -2,7 +2,7 @@
 
 The code provided here was written to generate the results reported in the following publication:
 
-Zied Hosni, Valerie J. Gillet, Richard L. Marchese Robinson, "Explicit applicability domain calculations can help determine when uncertainty estimates are less reliable" (Article being Revised)
+Zied Hosni, Valerie J. Gillet, Richard L. Marchese Robinson, "Explicit applicability domain calculations can help determine when uncertainty estimates are less reliable" (Article In Preparation : 12.08.25 - final proof-reading prior to submission to J. Chem. Inf. Model.)
 
 The code which is presented here has been organized into folders described under "Code Folders".
 
