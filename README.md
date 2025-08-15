@@ -204,7 +204,7 @@ compute_percentage_in_AD_for_different_parameter_options.py
 
 Note (1): These plots, which are not shown in the manuscript for brevity, were analyzed to identify reasonable default AD method parameters based on our inituition that a majority of compounds from a random test set should lie inside the domain but that - across different test sets - we would generally identify a sizeable number inside and outside the domain which were expected to allow us compute robust shift-metric values to evaluate the different AD methods. 
 
-Note (2): The AD methods considered here include the approach (nUNC - denoted "UNC" in the scripts) we focus on in the manuscript, as well as other approaches we initially explored on the exemplar datasets: "RDN", "dkNN" and "Tanimoto" (based on SIMILARITYNEAREST1 with a defined Tanimoto distance threshold for inside vs. outsid the domain).
+Note (2): The AD methods considered here include the approach (nUNC - denoted "UNC" in the scripts) we focus on in the manuscript, as well as other approaches we initially explored on the exemplar datasets: "RDN", "dkNN" and "Tanimoto" (based on SIMILARITYNEAREST1 with a defined Tanimoto distance threshold for inside vs. outside the domain).
 
 ## Step 9: Perform modelling and compute statistics for all test set compounds, as well as compounds inside and outside the AD, for all uncertainty methods (= algorithms) and AD methods, on the exemplar endpoints (=targets) for the public classification datasets
 
