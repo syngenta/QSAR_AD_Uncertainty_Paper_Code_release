@@ -265,8 +265,23 @@ def get_y_ticks(y_min,y_max,interval=0.2):
 
     return adjusted_y_min,y_tick_vals
 
+def make_x_axis_tick_labels_nice(matplot_lib_axes_obj,x_axis_tickmarks_rotation=60.0,x_axis_tickmarks_size=12.0,spacing_factor=1.8):
+    #####################
+    #Consulted documentation:
+    #https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.get_xticklabels.html (16/09/25)
+    #https://matplotlib.org/stable/api/text_api.html#matplotlib.text.Text (16/09/25)
+    #####################
+    
 
-def plot_distribution_of_y_vals_per_subset_across_different_x_vals(plot_name,plot_input_df,x_label,y_label,subset_label,y_min=0.0,y_max=1.0,central_estimator='mean',error_bar_settings=("pi",95),x_axis_tickmarks_rotation=60.0,x_axis_tickmarks_size=8.0,y_axis_tickmarks_size=8.0,x_label_size=9.0,y_label_size=9.0,p_values_info=None,p_vals_label_col=p_vals_label_col,should_filter_x_with_no_ys_for_at_least_one_subset=False,alt_x_label=None,alt_y_label=None):
+    individual_x_axis_tick_label_objects = matplot_lib_axes_obj.get_xticklabels(which='both')
+
+    for x_axis_tick_label_obj in individual_x_axis_tick_label_objects:
+        x_axis_tick_label_obj.set_rotation(x_axis_tickmarks_rotation)
+        x_axis_tick_label_obj.set_horizontalalignment('center')
+        x_axis_tick_label_obj.set_size(x_axis_tickmarks_size)
+        x_axis_tick_label_obj.set_linespacing(spacing_factor)
+
+def plot_distribution_of_y_vals_per_subset_across_different_x_vals(plot_name,plot_input_df,x_label,y_label,subset_label,y_min=0.0,y_max=1.0,central_estimator='mean',error_bar_settings=("pi",95),x_axis_tickmarks_rotation=70.0,x_axis_tickmarks_size=11.0,y_axis_tickmarks_size=9.0,x_label_size=9.0,y_label_size=9.0,p_values_info=None,p_vals_label_col=p_vals_label_col,should_filter_x_with_no_ys_for_at_least_one_subset=False,alt_x_label=None,alt_y_label=None,legend_fontsize=14):
     ##############################
     #Documentation consulted to understand options:
     #
@@ -295,9 +310,14 @@ def plot_distribution_of_y_vals_per_subset_across_different_x_vals(plot_name,plo
     #Make sure x,y labels fit on plot:
     #https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.set_xlabel.html
     #https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.set_ylabel.html
+    #
+    #Trying to improve (main text) figure plot aesthetics in response to peer-review:
+    #https://seaborn.pydata.org/tutorial/aesthetics.html (16/09/25)
     ##############################
 
     sns.set_style("white")
+    #sns.set_theme()
+    #sns.set_context("paper")
 
     #=========================
     if "ci" == error_bar_settings[0]:
@@ -324,9 +344,11 @@ def plot_distribution_of_y_vals_per_subset_across_different_x_vals(plot_name,plo
     
     matplot_lib_axes_obj = sns.lineplot(data=plot_input_df,x=x_label,y=y_label,hue=subset_label,style=subset_label,estimator=central_estimator,seed=_seed,n_boot=_n_boot,errorbar=error_bar_settings,markers=True)
 
-    sns.move_legend(bbox_to_anchor=(0.5, 1),obj=matplot_lib_axes_obj,loc='lower center',ncol=2,frameon=False,title=None)
+    sns.move_legend(bbox_to_anchor=(0.5, 1),obj=matplot_lib_axes_obj,loc='lower center',ncol=2,frameon=False,title=None,fontsize=legend_fontsize)
+    #matplot_lib_axes_obj.legend(fontsize=legend_fontsize)
 
-    matplot_lib_axes_obj.tick_params(axis='x',labelrotation=x_axis_tickmarks_rotation,labelsize=x_axis_tickmarks_size)
+    #matplot_lib_axes_obj.tick_params(axis='x',labelrotation=x_axis_tickmarks_rotation,labelsize=x_axis_tickmarks_size)
+    make_x_axis_tick_labels_nice(matplot_lib_axes_obj,x_axis_tickmarks_rotation=x_axis_tickmarks_rotation,x_axis_tickmarks_size=x_axis_tickmarks_size)
 
     matplot_lib_axes_obj.tick_params(axis='y',labelsize=y_axis_tickmarks_size)#,which='both',labelbottom=True, labeltop=True, labelleft=True, labelright=True)
 

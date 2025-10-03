@@ -24,6 +24,7 @@
 #############################################################
 import os,sys
 import pandas as pd
+import itertools
 from pandas.testing import assert_frame_equal
 
 #------------------
@@ -36,6 +37,7 @@ scripts_top_dir = os.path.sep.join([top_dir,'scripts'])
 sys.path.append(scripts_top_dir)
 #-------------------
 from PublicDataModelling.general_purpose.common_globals import assign_new_ids_corresponding_to_inchis
+from PublicDataModelling.regression.common_globals_regression_scripts import all_Wang_endpoints
 from summary_plots_script_functions import get_plot_input_df,plot_distribution_of_y_vals_per_subset_across_different_x_vals
 
 def test_assign_new_ids_corresponding_to_inchis():
@@ -155,3 +157,27 @@ def test_plot_distribution_of_y_vals_per_subset_across_different_x_vals_filter_x
     plot_distribution_of_y_vals_per_subset_across_different_x_vals(plot_name,plot_input_df,x_label,y_label,subset_label,should_filter_x_with_no_ys_for_at_least_one_subset=True)
 
 
+def test_plot_distribution_of_y_vals_per_subset_across_different_x_vals_with_many_different_and_long_x_vals():
+    plot_name = 'test_plot_dist_of_vals_vs_EP_grouped_by_ad_subset_label_many_long_EP_names.tiff'
+
+    many_long_ep_names = all_Wang_endpoints
+
+    ep_col_entries = list(itertools.chain(*[[x]*4 for x in many_long_ep_names]))
+    ad_subset_col_entries = ['Inside','Inside','Outside','Outside']*len(many_long_ep_names)
+    val_col_entries = [0.25,0.35,0.45,0.50]*len(many_long_ep_names)
+
+    #========================================
+    endpoint_col = 'Endpoint'
+    val_col = 'Shift-metric: Pearson coefficient (cal)'
+    ad_subset_col = 'Subset'
+    
+    expected_df = pd.DataFrame({endpoint_col:ep_col_entries,ad_subset_col:ad_subset_col_entries,val_col:val_col_entries})
+    #========================================
+
+    plot_input_df = expected_df
+
+    x_label = endpoint_col
+    y_label = val_col
+    subset_label = ad_subset_col
+
+    plot_distribution_of_y_vals_per_subset_across_different_x_vals(plot_name,plot_input_df,x_label,y_label,subset_label,y_min=-2.0,y_max=2.0)
