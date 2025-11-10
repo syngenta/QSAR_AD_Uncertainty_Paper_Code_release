@@ -25,6 +25,7 @@
 import os,sys
 import pandas as pd
 import itertools
+import numpy as np
 from pandas.testing import assert_frame_equal
 
 #------------------
@@ -181,3 +182,34 @@ def test_plot_distribution_of_y_vals_per_subset_across_different_x_vals_with_man
     subset_label = ad_subset_col
 
     plot_distribution_of_y_vals_per_subset_across_different_x_vals(plot_name,plot_input_df,x_label,y_label,subset_label,y_min=-2.0,y_max=2.0)
+
+def test_summarize_train_vs_train_compared_to_train_vs_test_Tanimoto_distances():
+    from PublicDataModelling.general_purpose.summarize_dataset_pairwise_distance_distributions import summarize_train_vs_train_compared_to_train_vs_test_Tanimoto_distances
+
+    generator = np.random.default_rng(seed=42)
+
+    for plot_file_prefix in ['test_example_low_diversity_train','test_example_high_diversity_train']:
+        
+        train_vs_test_pairwise_distances = [(v/100) for v in generator.integers(low=50,high=100,size=100)]
+
+        if plot_file_prefix == 'test_example_low_diversity_train':
+            train_vs_train_pairwise_distances =  [(v/100) for v in generator.integers(low=20,high=60,size=100)]
+        elif plot_file_prefix == 'test_example_high_diversity_train':
+            train_vs_train_pairwise_distances = [(v/100) for v in generator.integers(low=30,high=80,size=100)]
+        else:
+            raise Exception(f'Unrecognised plot_file_prefix={plot_file_prefix}')
+
+        summarize_train_vs_train_compared_to_train_vs_test_Tanimoto_distances(train_vs_train_pairwise_distances, train_vs_test_pairwise_distances, raw_label_train='', raw_label_test='Test', endpoint='EP', plot_file_prefix=plot_file_prefix, fold=None)
+
+        #To avoid adding output to git repo, this was added immediately after first local, manual sanity check of CSV files c.f. expectations and plot files.
+        os.remove(f'{plot_file_prefix}_fract_stats.csv')
+
+def test_get_fold():
+    from PublicDataModelling.general_purpose.summarize_dataset_pairwise_distance_distributions import get_fold
+
+    train_test_label_pair=('A2a_ivit_f=0_train_FPs', 'A2a_ivit_f=0_test_FPs')
+
+
+    assert 0 == get_fold(train_test_label_pair,'Wang_ChEMBL',merged_across_folds=False)
+    
+    

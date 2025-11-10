@@ -2,7 +2,7 @@
 
 The code provided here was written to generate the results reported in the following publication:
 
-Zied Hosni, Valerie J. Gillet, Richard L. Marchese Robinson, "Explicit applicability domain calculations can help determine when uncertainty estimates are less reliable" (Article being revised prior to resubmission to J. Chem. Inf. Model.)
+Zied Hosni, Valerie J. Gillet, Richard L. Marchese Robinson, "Explicit applicability domain calculations can help determine when uncertainty estimates are less reliable" (Article being revised prior to submission to new journal - ACS Omega)
 
 The code which is presented here has been organized into folders described under "Code Folders".
 
@@ -426,6 +426,28 @@ Run the following Python scripts:
 tsne_distributions_class_syn_updates.py
 
 tsne_distributions_reg_syn_updates.py
+
+## Step 26: Carry out training set diversity analyses
+
+Navigate to ..\QSAR_AD_Uncertainty_Paper_Code_release\scripts\PublicDataModelling\general_purpose
+
+Run the following Python script:
+
+summarize_dataset_pairwise_distance_distributions.py
+
+Navigate to ..\QSAR_AD_Uncertainty_Paper_Code_release\scripts\SynExamples
+
+Run the following Python scripts:
+
+pairwise_distance_distributions_class_syn_updates.py
+
+pairwise_distance_distributions_reg_syn_updates.py
+
+Navigate to ..\QSAR_AD_Uncertainty_Paper_Code_release\scripts
+
+Run the following Python script:
+
+training_set_diversity_vs_shift_metrics.py
 
 
 

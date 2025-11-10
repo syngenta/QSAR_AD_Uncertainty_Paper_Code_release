@@ -27,7 +27,7 @@ from collections import defaultdict
 import pandas as pd
 import numpy as np
 import pickle
-import shutil
+import gc
 ##################################
 dir_of_this_script = os.path.dirname(os.path.abspath(__file__))
 top_scripts_dir = os.path.dirname(dir_of_this_script)
@@ -63,7 +63,7 @@ from modelsADuncertaintyPkg.CheminformaticsUtils.dataset_distributions import co
 #Also, import distance distributions plot function from script originally used to plot these for public data
 #If we try to use relative imports, this causes problems with imports inside the script we are importing from
 sys.path.append(os.path.sep.join([top_scripts_dir,'PublicDataModelling','general_purpose']))
-from plot_dataset_pairwise_distance_distributions import plot_train_vs_train_compared_to_train_vs_test_Tanimoto_distances
+from summarize_dataset_pairwise_distance_distributions import summarize_train_vs_train_compared_to_train_vs_test_Tanimoto_distances
 #----------------------------------------------------------------------------
 
 from reg_syn_updates import id_col,smiles_col,ep_col,dataset_file,min_no_cmpds,updates_in_order
@@ -104,6 +104,12 @@ def distance_distributions_for_model_ready_dataset(update_version,id_col,smiles_
             
     train_vs_train_pairwise_distances, dict_of_train_id_pairs_to_pairwise_distances = compute_pairwise_distances_for_dataset(fps_df_for_dataset=fps_train, data_ids_for_dataset=train_ids)
 
+    #########################
+    #Clean up immediately to save memory:
+    del fps_train, fps_test,dict_of_id_pairs_to_train_vs_test_pairwise_distances,dict_of_train_id_pairs_to_pairwise_distances
+    gc.collect()
+    ##########################
+    
     #=================
     #----------------------------
     #This is actually redundant:
@@ -118,8 +124,14 @@ def distance_distributions_for_model_ready_dataset(update_version,id_col,smiles_
 
 
 
-    plot_train_vs_train_compared_to_train_vs_test_Tanimoto_distances(train_vs_train_pairwise_distances, train_vs_test_pairwise_distances, raw_label_train, raw_label_test, endpoint, plot_file_prefix)      
+    summarize_train_vs_train_compared_to_train_vs_test_Tanimoto_distances(train_vs_train_pairwise_distances, train_vs_test_pairwise_distances, raw_label_train, raw_label_test, endpoint, plot_file_prefix)      
     #=================
+
+    #########################
+    #Clean up immediately to save memory:
+    del train_vs_train_pairwise_distances, train_vs_test_pairwise_distances
+    gc.collect()
+    ##########################
 
 def main():
     print('THE START')
