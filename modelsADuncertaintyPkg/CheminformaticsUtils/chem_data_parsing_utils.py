@@ -1,5 +1,5 @@
-#Syngenta Open Source release: This file is part of code developed in the context of a Syngenta funded collaboration with the University of Sheffield: "Improved Estimation of Prediction Uncertainty Leading to Better Decisions in Crop Protection Research". In some cases, this code is a derivative work of other Open Source code. Please see under "If this code was derived from Open Source code, the provenance, copyright and license statements will be reported below" for further details.
-#Copyright (c) 2021-2025  Syngenta
+#Syngenta Open Source release: This file has been adapted from code developed in the context of a Syngenta funded collaboration with the University of Sheffield: "Improved Estimation of Prediction Uncertainty Leading to Better Decisions in Crop Protection Research". In some cases, this code is a derivative work of other Open Source code. Please see under "If this code was derived from Open Source code, the provenance, copyright and license statements will be reported below" for further details.
+#Copyright (c) 2021-2026  Syngenta
 #
 #This program is free software: you can redistribute it and/or modify
 #it under the terms of the GNU General Public License as published by
@@ -187,12 +187,13 @@ def addFPBitsColsToDf_Row_WithSMILES(row,smiles_col,nBits=1024,bond_radius=2,bit
         
     
     if not fp_bits_list is None:
+        row[mol_parse_status_col] = True
     
         fp_bits_series = pd.Series(fp_bits_list,index=[str(i) for i in range(0,nBits)])
     
         row = pd.concat([row,fp_bits_series])
         
-        row[mol_parse_status_col] = True
+        
     else:
         row[mol_parse_status_col] = None
         
@@ -265,6 +266,13 @@ def check_addFPBitsColsToDfWithProblemSMILES():
     df_with_smiles = pd.DataFrame({smiles_col:[simple_smiles,problem_mol,simple_smiles_salt],'ID':['Mol','Problem','Salt']})
     
     df_with_fps_too = addFPBitsColsToDfWithSMILES(df_with_smiles,smiles_col)
+
+    #-----------
+    #Before the fix to def addFPBitsColsToDf_Row_WithSMILES(...), this new assert statement failed - the fingerprint columns were lexicographically re-ordered if one molecule failed!
+    #However, this wouldn't be an issue when we compute fingeprint bit-vector columns after first applying getFpsDfAndDataDfSkippingFailedMols(...), as is the case for the public dataset scripts!
+    #ALSO, the consistency of the fingerprint bit column orders for the training and test sets is already checked for all corresponding training and test sets when findInsideOutsideADTestIds(...) is invoked!
+    assert [smiles_col,'ID']+[str(i) for i in range(0,1024)] ==  df_with_fps_too.columns.values.tolist(),df_with_fps_too.columns.values.tolist()
+    #-----------
     
     dict_of_fp_bits = {'ID':['Mol','Salt']}
     for fp_bit_index in range(0,1024):

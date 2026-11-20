@@ -1,5 +1,6 @@
-#Syngenta Open Source release: This file is part of code developed in the context of a Syngenta funded collaboration with the University of Sheffield: "Improved Estimation of Prediction Uncertainty Leading to Better Decisions in Crop Protection Research". In some cases, this code is a derivative work of other Open Source code. Please see under "If this code was derived from Open Source code, the provenance, copyright and license statements will be reported below" for further details.
-#Copyright (c) 2021-2025  Syngenta
+######################################################
+# Syngenta Open Source release: This file has been adapted from code developed in the context of a Syngenta funded collaboration with the University of Sheffield: "Improved Estimation of Prediction Uncertainty Leading to Better Decisions in Crop Protection Research". In some cases, this code is a derivative work of other Open Source code. Please see under "If this code was derived from Open Source code, the provenance, copyright and license statements will be reported below" for further details.
+#Copyright (c) 2021-2026  Syngenta
 #
 #This program is free software: you can redistribute it and/or modify
 #it under the terms of the GNU General Public License as published by
@@ -36,7 +37,7 @@ pkg_dir = os.path.dirname(top_scripts_dir)
 sys.path.append(pkg_dir)
 from modelsADuncertaintyPkg.utils.basic_utils import createOrReplaceDir
 
-from AD_ranking import filter_to_only_keep_default_AD_params_results
+from PublicDataModelling.Analysis.AD_ranking import filter_to_only_keep_default_AD_params_results
 
 data_dir = os.path.sep.join([os.path.dirname(os.path.dirname(os.path.dirname(top_scripts_dir))),'PublicData'])
 results_to_analyse_top_dir = os.path.sep.join([data_dir,'ADWA'])

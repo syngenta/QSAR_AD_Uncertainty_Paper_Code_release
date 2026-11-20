@@ -1,5 +1,5 @@
-#Syngenta Open Source release: This file is part of code developed in the context of a Syngenta funded collaboration with the University of Sheffield: "Improved Estimation of Prediction Uncertainty Leading to Better Decisions in Crop Protection Research". In some cases, this code is a derivative work of other Open Source code. Please see under "If this code was derived from Open Source code, the provenance, copyright and license statements will be reported below" for further details.
-#Copyright (c) 2021-2025  Syngenta
+#Syngenta Open Source release: This file has been adapted from code developed in the context of a Syngenta funded collaboration with the University of Sheffield: "Improved Estimation of Prediction Uncertainty Leading to Better Decisions in Crop Protection Research". In some cases, this code is a derivative work of other Open Source code. Please see under "If this code was derived from Open Source code, the provenance, copyright and license statements will be reported below" for further details.
+#Copyright (c) 2021-2026  Syngenta
 #
 #This program is free software: you can redistribute it and/or modify
 #it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@ import pandas as pd
 import numpy as np
 from statsmodels.sandbox.stats.multicomp import multipletests
 
-def getAdjustedPValues(p_vals_list,sig_level_perc=5,p_val_adjustment_method='fdr_by',skip_missing=True):
+def getAdjustedPValues(p_vals_list,sig_level_perc=5,p_val_adjustment_method='fdr_by',skip_missing=True,sanity_check=True):
     
     sig_level_fraction = sig_level_perc/100
     
@@ -47,6 +47,17 @@ def getAdjustedPValues(p_vals_list,sig_level_perc=5,p_val_adjustment_method='fdr
         else:
             corrected_p_vals_list = p_vals_list
    
+    if sanity_check:
+        for index in range(len(p_vals_list)):
+            raw_p = p_vals_list[index]
+            adjusted_p = corrected_p_vals_list[index]
+            for other_index in [i for i in range(len(p_vals_list)) if i > index]:
+                other_raw_p = p_vals_list[other_index]
+                other_adjusted_p = corrected_p_vals_list[other_index]
+
+                if (other_adjusted_p == adjusted_p) and not (other_raw_p == raw_p):
+                    print(f'Somewhat different p-values mapped to the same adjusted p-values is a feature of the BY approach: index={index},other_index={other_index},raw_p={raw_p},other_raw_p={other_raw_p},adjusted_p={adjusted_p},other_adjusted_p={other_adjusted_p}')
+
     
     return corrected_p_vals_list
 

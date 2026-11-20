@@ -2,7 +2,9 @@
 
 The code provided here was written to generate the results reported in the following publication:
 
-Zied Hosni, Valerie J. Gillet, Richard L. Marchese Robinson, "Explicit applicability domain calculations can help determine when uncertainty estimates are less reliable" (Article being revised prior to submission to new journal - ACS Omega)
+Zied Hosni, Valerie J. Gillet, Richard L. Marchese Robinson, "Explicit applicability domain calculations can help determine when uncertainty estimates are less reliable", ACS Omega, 2026, 11, 3, 4722 - 4743 [https://doi.org/10.1021/acsomega.5c11875]
+
+The version of the code used to generate the results for this publication can be found here: https://github.com/syngenta/QSAR_AD_Uncertainty_Paper_Code_release/releases/tag/v4
 
 The code which is presented here has been organized into folders described under "Code Folders".
 
@@ -31,7 +33,26 @@ Likewise, the Syngenta summary plots can only be reproduced if the applicability
 [Your top level directory name]\SyngentaData\logP_updates\Calc\AD.stat.sig\one_tail_Regression_PVals_GlobalAdjusted.csv
 
 [Your top level directory name]\SyngentaData\logP_updates\Calc\AD.stat.sig\Regression_PVals_GlobalAdjusted.csv
+
+Note: to reproduce the updated plots and analyses based upon the "Revised statistical significance procedure" described below, the updated versions of these tables will need to be saved as CSV files under the modified names indicated in the scripts referred to under ## Step 27: Apply revised statistical significance procedure.
 *********
+
+# Revised statistical significance procedure
+
+Since our work was published, we identified that the original statistical significance analyses reported in our publication did not align with accepted best practice and indicated stronger evidence of statistical significance than is warranted. Hence, we have updated this analysis to take account of more appropriate statistical procedures which we regrettably overlooked.
+
+The outcome of these updated analyses does not qualitatively change the overall conclusions: (i) we observed indicative evidence that explicit applicability calculations can help determine when the investigated uncertainty estimates are less reliable, i.e. the uncertainty performance metrics outside the domain were worse, on average, in most cases with the nUNC AD method and the uncertainty algorithms which our work focused on; (ii) we obtained multiple testing false discovery rate (FDR) adjusted one-tail p-values indicating some of these results were highly unlikely to be due to chance. However, whereas our original analysis indicated some of our FDR adjusted one-tail p-values controlled the false discovery rate amongst all our results, i.e. were statistically significant, at a pre-specified 5.5% level, our updated analysis no longer supports this. (Equivalently, our original analysis indicated that at least 94.5% of our results with the smallest one-tail p-values were not due to chance.) Nonetheless, our updated analysis suggests that more than 84% of the results associated with the smallest one-tail p-values are expected to be true discoveries, i.e. are not  due to chance. (Some of these results corresponded to differences in prediction performance metrics and others to differences in uncertainty estimation performance metrics inside vs. outside the domain.) Hence, although the strength of the evidence in support of our conclusions is somewhat weaker than originally appeared to be the case, the results still support our conclusions.
+
+The revised statistical significance procedure entailed the following:
+(i) using the p_u formula from Phipson and Smith [https://doi.org/10.2202/1544-6115.1585] to avoid the pre-cursor permutation p-values being underestimated as exactly zero for the smallest p-values;
+(ii) using the Cauchy Combination Test [https://doi.org/10.1080/01621459.2018.1554485] [https://doi.org/10.1186/s12859-025-06126-z], which is expected to provide a reasonable approximation when combining the pre-cursor p-values without being excessively conservative, in place of 'twice the average p-value' - prior to applying multiple-testing adjustement as before for the combined p-values;
+(iii) remove efficiency from the metrics considered when assessing the statistical significance of differences in prediction and uncertainty performance metrics inside vs. outside the domain;
+(iv) use the combined set of regression y-values inside and outside the domain to dicretize these values, as required for computing the precursor permutation p-values based upon stratified sampling;
+(v) stop skipping certain random permutations, because these could cause the calculation of some metrics to fail
+
+The scripts used to apply this revised statistical significance framework can be found under revised_p_vals\ and their use is documented in the new section at the end: ## Step 27: Apply revised statistical significance procedure.
+
+Implementing these new calculations also entailed making some changes to the utility code under modelsADuncertaintyPkg\
 
 # Code Folders
 
@@ -42,6 +63,8 @@ modelsADuncertaintyPkg\ : this folder is structured like a Python package and co
 test_suite\ : this folder contains definitions of unit-tests, other tests and associated files for testing the code presented in the folders scripts\ or modelsADuncertaintyPkg\
 
 .github/workflows\ : this folder contains a file defining a CI/CD flow, which triggers running the tests found under test_suite\ using pytest upon pushing commits to the GitHub repo
+
+revised_p_vals\ : this folder contains the scripts used to run the updated code required for ## Step 27: Apply revised statistical significance procedure
 
 # Installing dependencies
 
@@ -85,7 +108,7 @@ The folder \QSAR_AD_Uncertainty_Paper_Code_release\ containing, at the top level
 Here, [Your top level directory name] and [Your sub-directory name] can be names of your choosing. However, at least on Windows, take care that the absolute path names are not too long!
 
 This should give you the following directory structure:  
-[Your top level directory name]\ [Your sub-directory name]\QSAR_AD_Uncertainty_Paper_Code_release  
+[Your top level directory name]\[Your sub-directory name]\QSAR_AD_Uncertainty_Paper_Code_release  
 
 [Example: C:\Calculations\OurCode\QSAR_AD_Uncertainty_Paper_Code_release]
 
@@ -205,6 +228,8 @@ compute_percentage_in_AD_for_different_parameter_options.py
 Note (1): These plots, which are not shown in the manuscript for brevity, were analyzed to identify reasonable default AD method parameters based on our inituition that a majority of compounds from a random test set should lie inside the domain but that - across different test sets - we would generally identify a sizeable number inside and outside the domain which were expected to allow us compute robust shift-metric values to evaluate the different AD methods. 
 
 Note (2): The AD methods considered here include the approach (nUNC - denoted "UNC" in the scripts) we focus on in the manuscript, as well as other approaches we initially explored on the exemplar datasets: "RDN", "dkNN" and "Tanimoto" (based on SIMILARITYNEAREST1 with a defined Tanimoto distance threshold for inside vs. outside the domain).
+
+Note (3): Based upon the percentage in-domain analyses for the exemplar datasets, k = 3 seemed a reasonable choice for the k-nearest neighbour methods ("UNC", "RDN", "dkNN"). Values of the Tanimoto distance threshold between 0.3 or 0.5, for the "Tanimoto" method, seemed reasonable for different dataset groups. The eventual choice of the Tanimoto distance threshold of 0.4 was informed by considering how the average inside domain coverage (="validity"), with ACP, varied for the IVOT test sets of the Wang-ChEMBL exemplar datasets, by running the script from Step 10 (below) with different parameter options. (Distance cutoffs of 0.35, 0.4, 0.5 were considered. k = 1,2,3,4,5,6 were also explored, but only "RDN" was sensitive to this and this just served to confirm our original selection of k = 3 based on the percentage in-domain analyses.) The shift-metric values were only computed and considered once the AD method parameters had been chosen and hardcoded in ..\scripts\consistent_parameters_for_all_modelling_runs.py
 
 ## Step 9: Perform modelling and compute statistics for all test set compounds, as well as compounds inside and outside the AD, for all uncertainty methods (= algorithms) and AD methods, on the exemplar endpoints (=targets) for the public classification datasets
 
@@ -448,6 +473,39 @@ Navigate to ..\QSAR_AD_Uncertainty_Paper_Code_release\scripts
 Run the following Python script:
 
 training_set_diversity_vs_shift_metrics.py
+
+## Step 27: Apply revised statistical significance procedure
+
+In all cases, these scripts were ran from the [Your top level directory name], where [Your sub-directory name] was 'code' in our case.
+
+(i) Running the scripts required to compute p_u precursor p-values for AD shift-metrics:
+
+python ./code/QSAR_AD_Uncertainty_Paper_Code_release/revised_p_vals/PublicDataModelling/Analysis/revisit_AD_stat_sig_for_exemplar_public_data.py -d Morger_ChEMBL
+
+python ./code/QSAR_AD_Uncertainty_Paper_Code_release/revised_p_vals/PublicDataModelling/Analysis/revisit_AD_stat_sig_for_exemplar_public_data.py -d Wang_ChEMBL
+
+python ./code/QSAR_AD_Uncertainty_Paper_Code_release/revised_p_vals/PublicDataModelling/Analysis/revisit_AD_stat_sig_for_exemplar_public_data.py -d Tox21
+
+python ./code/QSAR_AD_Uncertainty_Paper_Code_release/revised_p_vals/PublicDataModelling/Analysis/revisit_AD_stat_sig_for_modelling_other_endpoints.py
+
+python ./code/QSAR_AD_Uncertainty_Paper_Code_release/revised_p_vals/SynExamples/revisit_AD_stat_sig_for_syn_updates.py
+
+
+(ii) Running the script for (a) computing Cauchy Combination Test combined p-values from the pre-cursor values, (b) removing efficiency from the metrics considered during multiple testing adjustment and then (c) applying the multiple-testing adjustment procedure to the combined p-values as before: 
+
+python ./code/QSAR_AD_Uncertainty_Paper_Code_release/revised_p_vals/adjust_all_cct_merged_p_u_vals.py
+
+(iii) Running the subsequent scripts:
+
+python ./code/QSAR_AD_Uncertainty_Paper_Code_release/revised_p_vals/PublicDataModelling/Analysis/revisit_merge_default_method_res_for_all_eps.py
+
+python ./code/QSAR_AD_Uncertainty_Paper_Code_release/revised_p_vals/PublicDataModelling/Analysis/revisit_summary_plots_for_modelling_all_endpoints.py
+
+python ./code/QSAR_AD_Uncertainty_Paper_Code_release/revised_p_vals/SynExamples/revisit_summary_plots_for_syn_updates.py
+
+python ./code/QSAR_AD_Uncertainty_Paper_Code_release/revised_p_vals/PublicDataModelling/Analysis/revisit_shift_metric_trends_analysis_all_eps.py
+
+python ./code/QSAR_AD_Uncertainty_Paper_Code_release/revised_p_vals/revisit_the_proportion_of_two_tail_adjusted_stat_sig_when_average_shift_metric_had_the_wrong_sign.py
 
 
 

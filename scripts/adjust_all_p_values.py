@@ -1,5 +1,5 @@
-#Syngenta Open Source release: This file is part of code developed in the context of a Syngenta funded collaboration with the University of Sheffield: "Improved Estimation of Prediction Uncertainty Leading to Better Decisions in Crop Protection Research". In some cases, this code is a derivative work of other Open Source code. Please see under "If this code was derived from Open Source code, the provenance, copyright and license statements will be reported below" for further details.
-#Copyright (c) 2021-2025  Syngenta
+#Syngenta Open Source release: This file was adapted from code developed in the context of a Syngenta funded collaboration with the University of Sheffield: "Improved Estimation of Prediction Uncertainty Leading to Better Decisions in Crop Protection Research". In some cases, this code is a derivative work of other Open Source code. Please see under "If this code was derived from Open Source code, the provenance, copyright and license statements will be reported below" for further details.
+#Copyright (c) 2021-2026  Syngenta
 #
 #This program is free software: you can redistribute it and/or modify
 #it under the terms of the GNU General Public License as published by
@@ -42,7 +42,6 @@ def get_all_raw_p_vals_df_dict(one_tail_family,all_top_dirs_containing_raw_p_val
     
     for top_dataset_dir in all_top_dirs_containing_raw_p_vals_csvs:
         for subdir in report_subdirs_recursively(dir_=top_dataset_dir,absolute_names=True):
-            #print(f'Looking for p-value files inside subdir={subdir}')
             if one_tail_family:
                 subdir_specific_relevant_p_vals_files = glob.glob(os.path.sep.join([subdir,f'one_tail_*{p_vals_csv_suffix}']))
             else:

@@ -1,5 +1,5 @@
-#Syngenta Open Source release: This file is part of code developed in the context of a Syngenta funded collaboration with the University of Sheffield: "Improved Estimation of Prediction Uncertainty Leading to Better Decisions in Crop Protection Research". In some cases, this code is a derivative work of other Open Source code. Please see under "If this code was derived from Open Source code, the provenance, copyright and license statements will be reported below" for further details.
-#Copyright (c) 2021-2025  Syngenta
+# Syngenta Open Source release: This file has been adapted from code developed in the context of a Syngenta funded collaboration with the University of Sheffield: "Improved Estimation of Prediction Uncertainty Leading to Better Decisions in Crop Protection Research". In some cases, this code is a derivative work of other Open Source code. Please see under "If this code was derived from Open Source code, the provenance, copyright and license statements will be reported below" for further details.
+#Copyright (c) 2021-2026  Syngenta
 #
 #This program is free software: you can redistribute it and/or modify
 #it under the terms of the GNU General Public License as published by
@@ -36,7 +36,7 @@ import pandas as pd
 from sklearn.preprocessing import KBinsDiscretizer
 import sklearn
 from collections import defaultdict
-
+import logging
 from modelsADuncertaintyPkg.qsar_eval.reg_perf_pred_stats import rmse
 from .aggregate_p_vals import aggregate_p_vals
 from .enforce_minimum_no_instances import size_of_inputs_for_stats_is_big_enough
@@ -58,11 +58,15 @@ def estimated_probabilities_are_too_close(class_1_probs,experi_vals, delta=0.05)
     else:
         return False
 
-def consistentlyDiscretizeEndpointValues(y_set_one_list,y_set_two_list,n_bins=5,rand_seed=42):
+def consistentlyDiscretizeEndpointValues(y_set_one_list,y_set_two_list,n_bins=5,rand_seed=42,fix_reg_y_dicretization=False):
     #-------------------------------
     assert isinstance(y_set_one_list,list),f"type(y_set_one_list)={type(y_set_one_list)}. value={y_set_one_list}"
     assert isinstance(y_set_two_list,list),f"type(y_set_two_list)={type(y_set_two_list)}. value={y_set_two_list}"
     #--------------------------------
+
+    if fix_reg_y_dicretization:
+        logging.info('fix_reg_y_dicretization when consistently discretize endpoint values!')
+        y_combined_list_ready = np.array(y_set_one_list+y_set_two_list).reshape(-1,1)
     
     y_set_one_ready = np.array(y_set_one_list).reshape(-1,1)
     
@@ -73,7 +77,10 @@ def consistentlyDiscretizeEndpointValues(y_set_one_list,y_set_two_list,n_bins=5,
     else:
         discretizer=KBinsDiscretizer(n_bins=n_bins,encode='ordinal',strategy='uniform',random_state=rand_seed) #Is this actually needed for reproducible results unless subsample=int and strategy='quantile'?
     
-    discretizer.fit(y_set_one_ready)
+    if not fix_reg_y_dicretization:
+        discretizer.fit(y_set_one_ready)
+    else:
+        discretizer.fit(y_combined_list_ready)
     
     y_set_one_discretized = discretizer.transform(y_set_one_ready).flatten().tolist()
     
@@ -147,7 +154,7 @@ def getDictOfMergedIdsMatched2RawResults(dict_of_raw_subset_results,type_of_mode
         #------------------------------------------------
         if not isinstance(subset_test_y,list): raise Exception('subset_test_y must be of type=list! Currently it is of type {}'.format(type(subset_test_y)))
         #------------------------------------------------
-        
+        if not len(subset_test_ids) == len(subset_test_y): raise Exception(f'len(subset_test_ids)={len(subset_test_ids)} vs. len(subset_test_y)={len(subset_test_y)}')
         #----------------------------------------
         if 'binary_class' == type_of_modelling:
             type_of_modelling_specific_var_names = ['subset_probs_for_class_1','subset_predicted_y']
@@ -159,6 +166,9 @@ def getDictOfMergedIdsMatched2RawResults(dict_of_raw_subset_results,type_of_mode
         for var_name in type_of_modelling_specific_var_names:
             if not 'subset_sig_level_2_prediction_intervals' == var_name:
                 if not isinstance(dict_of_raw_subset_results[subset][var_name],list): raise Exception('{} must be a list! Currently it is of type {}'.format(var_name,type(dict_of_raw_subset_results[subset][var_name])))
+                #------------------------------------------------
+                if not len(subset_test_ids) == len(dict_of_raw_subset_results[subset][var_name]): raise Exception(f'len(subset_test_ids)={len(subset_test_ids)} vs. var_name = {var_name}: len(dict_of_raw_subset_results[subset][var_name])={len(dict_of_raw_subset_results[subset][var_name])}')
+                #----------------------------------------
             else:
                 if not isinstance(dict_of_raw_subset_results[subset][var_name],dict): raise Exception('{} must be a dict! Currently it is of type {}'.format(var_name,type(dict_of_raw_subset_results[subset][var_name])))
                 
@@ -166,6 +176,9 @@ def getDictOfMergedIdsMatched2RawResults(dict_of_raw_subset_results,type_of_mode
                 
                 for sig_level in subset_sig_level_2_prediction_intervals.keys():
                     if not isinstance(subset_sig_level_2_prediction_intervals[sig_level],np.ndarray): raise Exception('{} must be a numpy.ndarray! Currently it is of type {}'.format("subset_sig_level_2_prediction_intervals[sig_level]",type(subset_sig_level_2_prediction_intervals[sig_level])))
+                    #------------------------------------------------
+                    if not len(subset_test_ids) == len(subset_sig_level_2_prediction_intervals[sig_level]): raise Exception(f'len(subset_test_ids)={len(subset_test_ids)} vs. sig_level = {sig_level}: len(subset_sig_level_2_prediction_intervals[sig_level])={len(subset_sig_level_2_prediction_intervals[sig_level])}')
+                    #----------------------------------------
         #----------------------------------------
         
         for index in range(0,len(subset_test_ids)):
@@ -206,12 +219,35 @@ def getClass2Ids(all_strat_y_vals,all_ids,type_of_modelling):
     #=============================
     if 'binary_class' == type_of_modelling:
         if not 2 == len(list(class2Ids.keys())): raise Exception('list(class2Ids.keys())={}'.format(list(class2Ids.keys())))
+    elif 'regression' == type_of_modelling:
+        pass
+    else:
+        raise Exception(f'Unexpected type of modelling={type_of_modelling}')
     #=============================
     
     return class2Ids
 
+def generate_stratified_random_permutation_of_AD_labels(all_ids,class2Ids,subset_1_strat_y_vals):
+    #based on global np.random.seed state
+    #whilst this may no longer be considered best practice, I have observed this to be reproducible and two python scripts will not interfere with one another - they run in separate processes
+    rand_subset_1_ids = []
+
+    for class_label in class2Ids.keys():
+        class_specific_ids = np.asarray(class2Ids[class_label])
+    
+        size_sub_1 = len([v for v in subset_1_strat_y_vals if v == class_label])
+
+        class_specific_inside_ad_ids = np.random.choice(class_specific_ids, size=size_sub_1, replace=False).tolist()
+        rand_subset_1_ids += class_specific_inside_ad_ids
+
+    rand_subset_2_ids = [id_ for id_ in all_ids if id_ not in rand_subset_1_ids]
+
+    return rand_subset_1_ids,rand_subset_2_ids
+    
+
+
 def getSubsetIdsForCurrentRandSplit(dict_of_subset_results_ready_for_strat_rand_splits,subset_1_name,subset_2_name,strat_rand_split_y_name,
-                                    rand_split_no,type_of_modelling, max_while_loop=10,delta_calib_prob=0.05,metrics_of_interest=[]):
+                                    rand_split_no,type_of_modelling, max_while_loop=10,delta_calib_prob=0.05,metrics_of_interest=[],skip_certain_permutations_which_could_cause_some_metrics_to_fail=True):
     #############
 
     if type_of_modelling =="regression":
@@ -239,6 +275,8 @@ def getSubsetIdsForCurrentRandSplit(dict_of_subset_results_ready_for_strat_rand_
     if not isinstance(subset_1_ids,list): raise Exception(type(subset_1_ids))
     if not isinstance(subset_2_ids,list): raise Exception(type(subset_2_ids))
     #---------------------------
+    if not (isinstance(max_while_loop,int) and max_while_loop > 0): raise Exception(f'max_while_loop={max_while_loop}')
+    #--------------------------
     
     all_ids = subset_1_ids+subset_2_ids
     ##########
@@ -260,25 +298,27 @@ def getSubsetIdsForCurrentRandSplit(dict_of_subset_results_ready_for_strat_rand_
     #----------------------------
     
     class2Ids = getClass2Ids(all_strat_y_vals,all_ids,type_of_modelling)
+    
+    if skip_certain_permutations_which_could_cause_some_metrics_to_fail:
+        _max_while_loop = max_while_loop
+    else:
+        _max_while_loop = 1
 
     #########
 
     sufficient_diversity = False
     while_loop_counter = 0
+    no_permutations_skipped_due_to_insufficient_diversity = 0
     while not sufficient_diversity:
         while_loop_counter += 1
-        if while_loop_counter > max_while_loop:
+        if while_loop_counter > _max_while_loop:
             break
-        rand_subset_1_ids = []
+        
+        rand_subset_1_ids,rand_subset_2_ids = generate_stratified_random_permutation_of_AD_labels(all_ids,class2Ids,subset_1_strat_y_vals)
 
-        for class_label in class2Ids.keys():
-            class_specific_ids = np.asarray(class2Ids[class_label])
-            size_sub_1 = len([v for v in subset_1_strat_y_vals if v == class_label])
-
-            class_specific_inside_ad_ids = np.random.choice(class_specific_ids, size=size_sub_1, replace=False).tolist()
-            rand_subset_1_ids += class_specific_inside_ad_ids
-
-        rand_subset_2_ids = [id_ for id_ in all_ids if id_ not in rand_subset_1_ids]
+        if not skip_certain_permutations_which_could_cause_some_metrics_to_fail:
+            logging.info('Not skipping any permutations, even if they do not contain sufficient diversity to compute all metrics, to avoid biasing null-distribution for other shift-metrics!')
+            continue
 
         # Check for diversity in generated ids
         rand_subset_1_ys = [id_to_y_val_map[id_] for id_ in rand_subset_1_ids]
@@ -301,9 +341,13 @@ def getSubsetIdsForCurrentRandSplit(dict_of_subset_results_ready_for_strat_rand_
                     sufficient_diversity = True
             else:
                 raise Exception(f"Unexpected type of modelling={type_of_modelling}.")
+            
+            if not sufficient_diversity:
+                no_permutations_skipped_due_to_insufficient_diversity += 1
 
-        else:
-            print("Random subset created without sufficient diversity.")
+
+    if no_permutations_skipped_due_to_insufficient_diversity > 0:
+        logging.info(f"{no_permutations_skipped_due_to_insufficient_diversity} random subsets created without sufficient diversity and, hence, skipped -but, these could yield valid values for some other metrics.")
     
     #########
     #---------------------------
@@ -315,41 +359,42 @@ def getSubsetIdsForCurrentRandSplit(dict_of_subset_results_ready_for_strat_rand_
     assert all_ids==new_all_ids,"all_ids = {} vs. new_all_ids = {}".format(all_ids,new_all_ids)
     #----------------------------
     
-    ##########
-    # Extract y values for each subset
-    y_values_subset_1 = [id_to_y_val_map[id_] for id_ in rand_subset_1_ids]
-    y_values_subset_2 = [id_to_y_val_map[id_] for id_ in rand_subset_2_ids]
+    if skip_certain_permutations_which_could_cause_some_metrics_to_fail:
+        ##########
+        # Extract y values for each subset
+        y_values_subset_1 = [id_to_y_val_map[id_] for id_ in rand_subset_1_ids]
+        y_values_subset_2 = [id_to_y_val_map[id_] for id_ in rand_subset_2_ids]
 
-    # Extract pred y values for each subset
-    pred_y_values_subset_1 = [id_to_pred_y_val_map[id_] for id_ in rand_subset_1_ids]
-    pred_y_values_subset_2 = [id_to_pred_y_val_map[id_] for id_ in rand_subset_2_ids]
+        # Extract pred y values for each subset
+        pred_y_values_subset_1 = [id_to_pred_y_val_map[id_] for id_ in rand_subset_1_ids]
+        pred_y_values_subset_2 = [id_to_pred_y_val_map[id_] for id_ in rand_subset_2_ids]
 
-    if not while_loop_counter > max_while_loop:
-        # Assertion to confirm diversity in y values
-        if type_of_modelling =="regression":
-            assert len(set(y_values_subset_1)) > 1 and len(set(y_values_subset_2)) > 1 and len(set(pred_y_values_subset_1)) > 1 and len(set(
-            pred_y_values_subset_2)) > 1, "Lack of diversity in y values for generated subsets"
-        elif type_of_modelling == "binary_class":
-            #remember that predicted ys actually mean the probabilities for class 1 here.
-            if 0 < len(set(metrics_of_interest).intersection(set(['R2 (cal)','Pearson (cal)','Spearman (cal)']))):
-                assert not (estimated_probabilities_are_too_close(class_1_probs=pred_y_values_subset_1,experi_vals=y_values_subset_1,delta=delta_calib_prob) or estimated_probabilities_are_too_close(class_1_probs=pred_y_values_subset_2,experi_vals=y_values_subset_2,delta=delta_calib_prob)), "Class 1 probabilities are too close."
+        if not while_loop_counter > max_while_loop:
+            # Assertion to confirm diversity in y values
+            if type_of_modelling =="regression":
+                assert len(set(y_values_subset_1)) > 1 and len(set(y_values_subset_2)) > 1 and len(set(pred_y_values_subset_1)) > 1 and len(set(
+                pred_y_values_subset_2)) > 1, "Lack of diversity in y values for generated subsets"
+            elif type_of_modelling == "binary_class":
+                #remember that predicted ys actually mean the probabilities for class 1 here.
+                if 0 < len(set(metrics_of_interest).intersection(set(['R2 (cal)','Pearson coefficient (cal)','Spearman coefficient (cal)']))):
+                    assert not (estimated_probabilities_are_too_close(class_1_probs=pred_y_values_subset_1,experi_vals=y_values_subset_1,delta=delta_calib_prob) or estimated_probabilities_are_too_close(class_1_probs=pred_y_values_subset_2,experi_vals=y_values_subset_2,delta=delta_calib_prob)), "Class 1 probabilities are too close."
+                    
+                assert len(set(y_values_subset_1)) > 1 and len(set(y_values_subset_2)) > 1 and len(set(pred_y_values_subset_1)) > 1 and len(set(pred_y_values_subset_2)) > 1, "Lack of diversity in y values for generated subsets"
                 
-            assert len(set(y_values_subset_1)) > 1 and len(set(y_values_subset_2)) > 1 and len(set(pred_y_values_subset_1)) > 1 and len(set(pred_y_values_subset_2)) > 1, "Lack of diversity in y values for generated subsets"
-            
-            
+                
+            else:
+                raise Exception(f"Unexpected type of modelling={type_of_modelling}.")
         else:
-            raise Exception(f"Unexpected type of modelling={type_of_modelling}.")
-    else:
-        print("WARNING: We could not find a random subset with sufficient diversity - some metrics will fail! However, this may make no difference if the shift-metric could not be computed for the corresponding metrics for the original split!")
+            logging.info("WARNING: We could not find a random subset with sufficient diversity - some metrics will fail! However, this may make no difference if the shift-metric could not be computed for the corresponding metrics for the original split!")
 
-    #print("y_values_subset_2", y_values_subset_2)
-    ##########
+        #logging.info("y_values_subset_2", y_values_subset_2)
+        ##########
     return rand_subset_1_ids,rand_subset_2_ids
 
 
-def addSubsetIdsForCurrentRandSplit(dict_of_splits_matched_to_subset_ids,dict_of_subset_results_ready_for_strat_rand_splits,subset_1_name,subset_2_name,strat_rand_split_y_name,rand_split_no,type_of_modelling,delta_calib_prob=0.05,metrics_of_interest=[]):
+def addSubsetIdsForCurrentRandSplit(dict_of_splits_matched_to_subset_ids,dict_of_subset_results_ready_for_strat_rand_splits,subset_1_name,subset_2_name,strat_rand_split_y_name,rand_split_no,type_of_modelling,delta_calib_prob=0.05,metrics_of_interest=[],skip_certain_permutations_which_could_cause_some_metrics_to_fail=True):
     
-    rand_subset_1_ids,rand_subset_2_ids = getSubsetIdsForCurrentRandSplit(dict_of_subset_results_ready_for_strat_rand_splits,subset_1_name,subset_2_name,strat_rand_split_y_name,rand_split_no,type_of_modelling,delta_calib_prob=delta_calib_prob,metrics_of_interest=metrics_of_interest)
+    rand_subset_1_ids,rand_subset_2_ids = getSubsetIdsForCurrentRandSplit(dict_of_subset_results_ready_for_strat_rand_splits,subset_1_name,subset_2_name,strat_rand_split_y_name,rand_split_no,type_of_modelling,delta_calib_prob=delta_calib_prob,metrics_of_interest=metrics_of_interest,skip_certain_permutations_which_could_cause_some_metrics_to_fail=skip_certain_permutations_which_could_cause_some_metrics_to_fail)
     
     split_name = 'Random-{}'.format(rand_split_no)
     
@@ -380,7 +425,7 @@ def define_no_bins_for_regression_discretization(y_set_one_list,default=5):
     else:
         return default
 
-def getReadyForStratRandSplit(dict_of_raw_subset_results,strat_rand_split_y_name,type_of_modelling,subset_1_name,subset_2_name,default_no_bins_for_reg_strat=5):
+def getReadyForStratRandSplit(dict_of_raw_subset_results,strat_rand_split_y_name,type_of_modelling,subset_1_name,subset_2_name,default_no_bins_for_reg_strat=5,fix_reg_y_dicretization=False):
     
     dict_of_subset_results_ready_for_strat_rand_splits = defaultdict(dict)
     
@@ -389,25 +434,30 @@ def getReadyForStratRandSplit(dict_of_raw_subset_results,strat_rand_split_y_name
     y_set_two_list = dict_of_raw_subset_results[subset_2_name]['subset_test_y']
     ############
     #Debug:
-    #print(f'y_set_one_list={y_set_one_list}')
-    #print(f'y_set_two_list={y_set_two_list}')
+    #logging.info(f'y_set_one_list={y_set_one_list}')
+    #logging.info(f'y_set_two_list={y_set_two_list}')
     #############
 
-    #print("type_of_modelling=",type_of_modelling)
+    #logging.info("type_of_modelling=",type_of_modelling)
     if 'binary_class' == type_of_modelling:
         y_set_one_discretized = y_set_one_list
         y_set_two_discretized = y_set_two_list
     elif 'regression' == type_of_modelling:
-        n_bins = define_no_bins_for_regression_discretization(y_set_one_list,default=default_no_bins_for_reg_strat)
+        if not fix_reg_y_dicretization:
+            n_bins = define_no_bins_for_regression_discretization(y_set_one_list,default=default_no_bins_for_reg_strat)
+        else:
+            logging.info('fix_reg_y_dicretization when define no. bins!')
+            combined_y_list = y_set_one_list+y_set_two_list
+            n_bins = define_no_bins_for_regression_discretization(combined_y_list,default=default_no_bins_for_reg_strat)
 
-        y_set_one_discretized,y_set_two_discretized,discretizer = consistentlyDiscretizeEndpointValues(y_set_one_list,y_set_two_list,n_bins)
+        y_set_one_discretized,y_set_two_discretized,discretizer = consistentlyDiscretizeEndpointValues(y_set_one_list,y_set_two_list,n_bins,fix_reg_y_dicretization=fix_reg_y_dicretization)
     else:
         raise Exception(f'Unrecognised type_of_modelling={type_of_modelling}')
     
     ############
     #Debug:
-    #print(f'y_set_one_discretized={y_set_one_discretized}')
-    #print(f'y_set_two_discretized={y_set_two_discretized}')
+    #logging.info(f'y_set_one_discretized={y_set_one_discretized}')
+    #logging.info(f'y_set_two_discretized={y_set_two_discretized}')
     #############
         
     dict_of_subset_results_ready_for_strat_rand_splits[subset_1_name][strat_rand_split_y_name] = y_set_one_discretized
@@ -420,7 +470,7 @@ def getReadyForStratRandSplit(dict_of_raw_subset_results,strat_rand_split_y_name
     
     return dict_of_subset_results_ready_for_strat_rand_splits
 
-def getDictOfSplitsMatchedToSubsetIDs(dict_of_raw_subset_results,metrics_of_interest,subset_1_name='Inside',subset_2_name='Outside',type_of_modelling='binary_class',no_rand_splits=100,strat_rand_split_y_name='strat_y',rand_seed=42,delta_calib_prob=0.05):
+def getDictOfSplitsMatchedToSubsetIDs(dict_of_raw_subset_results,metrics_of_interest,subset_1_name='Inside',subset_2_name='Outside',type_of_modelling='binary_class',no_rand_splits=100,strat_rand_split_y_name='strat_y',rand_seed=42,delta_calib_prob=0.05,fix_reg_y_dicretization=False,skip_certain_permutations_which_could_cause_some_metrics_to_fail=True):
     #
     #See def getDictOfMergedIdsMatched2RawResults(...): for a description of dict_of_raw_subset_results
     
@@ -428,12 +478,12 @@ def getDictOfSplitsMatchedToSubsetIDs(dict_of_raw_subset_results,metrics_of_inte
     
     dict_of_splits_matched_to_subset_ids = addSubsetIdsForOriginalSplit(dict_of_splits_matched_to_subset_ids,dict_of_raw_subset_results,subset_1_name,subset_2_name)
     
-    dict_of_subset_results_ready_for_strat_rand_splits = getReadyForStratRandSplit(dict_of_raw_subset_results,strat_rand_split_y_name,type_of_modelling,subset_1_name,subset_2_name)
+    dict_of_subset_results_ready_for_strat_rand_splits = getReadyForStratRandSplit(dict_of_raw_subset_results,strat_rand_split_y_name,type_of_modelling,subset_1_name,subset_2_name,fix_reg_y_dicretization=fix_reg_y_dicretization)
     
     setRandGeneratorSeed(rand_seed)
     
     for rand_split_no in range(0,no_rand_splits):
-        dict_of_splits_matched_to_subset_ids = addSubsetIdsForCurrentRandSplit(dict_of_splits_matched_to_subset_ids,dict_of_subset_results_ready_for_strat_rand_splits,subset_1_name,subset_2_name,strat_rand_split_y_name,rand_split_no,type_of_modelling,delta_calib_prob=delta_calib_prob,metrics_of_interest=metrics_of_interest)
+        dict_of_splits_matched_to_subset_ids = addSubsetIdsForCurrentRandSplit(dict_of_splits_matched_to_subset_ids,dict_of_subset_results_ready_for_strat_rand_splits,subset_1_name,subset_2_name,strat_rand_split_y_name,rand_split_no,type_of_modelling,delta_calib_prob=delta_calib_prob,metrics_of_interest=metrics_of_interest,skip_certain_permutations_which_could_cause_some_metrics_to_fail=skip_certain_permutations_which_could_cause_some_metrics_to_fail)
     
     
     return dict_of_splits_matched_to_subset_ids
@@ -466,7 +516,7 @@ def getThisSplitsRawRes(dict_of_merged_ids_matched_to_raw_res,subset_1_ids,subse
             subset_matched_to_raw_res[subset_name]['subset_probs_for_class_1'] = [dict_of_merged_ids_matched_to_raw_res[id_]['subset_prob_for_class_1_val'] for id_ in subset_ids]
             
             subset_matched_to_raw_res[subset_name]['subset_predicted_y'] = [dict_of_merged_ids_matched_to_raw_res[id_]['subset_predicted_y_val'] for id_ in subset_ids]
-            #print("subset_matched_to_raw_res[subset_name]['subset_predicted_y']",subset_matched_to_raw_res[subset_name]['subset_predicted_y'])
+            #logging.info("subset_matched_to_raw_res[subset_name]['subset_predicted_y']",subset_matched_to_raw_res[subset_name]['subset_predicted_y'])
         elif 'regression' == type_of_modelling:
             subset_matched_to_raw_res[subset_name]['subset_test_predictions'] = [dict_of_merged_ids_matched_to_raw_res[id_]['subset_test_prediction_val'] for id_ in subset_ids]
             
@@ -620,15 +670,15 @@ def computeShiftMetricsOfInterestForCurrentSplit(dict_of_metrics_matched_to_subs
             else:
                 #np.(inf-inf) = nan
                 dict_of_metrics_matched_to_shift_metric_vals[metric] = np.nan
-                print(f'metric={metric} is infinitely large inisde and outside the domain. This shift-metric is not a number and will be ignored!')
-            #print(f"metric={metric}, dict_of_metrics_matched_to_subset_vals[metric][subset_1_name]",dict_of_metrics_matched_to_subset_vals[metric][
+                logging.info(f'metric={metric} is infinitely large inisde and outside the domain. This shift-metric is not a number and will be ignored!')
+            #logging.info(f"metric={metric}, dict_of_metrics_matched_to_subset_vals[metric][subset_1_name]",dict_of_metrics_matched_to_subset_vals[metric][
             #    subset_1_name])
-            #print(f"metric={metric}, dict_of_metrics_matched_to_subset_vals[metric][subset_2_name]",dict_of_metrics_matched_to_subset_vals[metric][
+            #logging.info(f"metric={metric}, dict_of_metrics_matched_to_subset_vals[metric][subset_2_name]",dict_of_metrics_matched_to_subset_vals[metric][
             #    subset_2_name])
-            #print(f"dict_of_metrics_matched_to_shift_metric_vals[metric]={dict_of_metrics_matched_to_shift_metric_vals[metric]}")
+            #logging.info(f"dict_of_metrics_matched_to_shift_metric_vals[metric]={dict_of_metrics_matched_to_shift_metric_vals[metric]}")
         else:
             dict_of_metrics_matched_to_shift_metric_vals[metric] = None
-            print(f"Warning: shift metric could not be computed for metric name = {metric}. Subset_1_value = "
+            logging.info(f"Warning: shift metric could not be computed for metric name = {metric}. Subset_1_value = "
                   f"{dict_of_metrics_matched_to_subset_vals[metric][subset_1_name]}, Subset 2 value = {dict_of_metrics_matched_to_subset_vals[metric][subset_2_name]}")
 
     return dict_of_metrics_matched_to_shift_metric_vals
@@ -649,8 +699,8 @@ def getMetric2AllSplitsShiftMetricVals(dict_of_merged_ids_matched_to_raw_res,dic
         subset_2_ids = dict_of_splits_matched_to_subset_ids[split_name][subset_2_name]
         
         dict_of_metrics_matched_to_subset_vals = computeMetricsOfInterestForCurrentSplit(dict_of_merged_ids_matched_to_raw_res,metrics_of_interest,subset_1_ids,subset_2_ids,subset_1_name,subset_2_name,type_of_modelling,metrics_for_which_shift_metric_cannot_be_computed_for_orig_split=metrics_for_which_shift_metric_cannot_be_computed_for_orig_split,sig_level_of_interest=conformal_sig_level,delta_probs=[delta_calib_prob])
-        #print("split_name", split_name)
-        #print("dict_of_metrics_matched_to_subset_vals", dict_of_metrics_matched_to_subset_vals)
+        #logging.info("split_name", split_name)
+        #logging.info("dict_of_metrics_matched_to_subset_vals", dict_of_metrics_matched_to_subset_vals)
         dict_of_metrics_matched_to_shift_metric_vals = computeShiftMetricsOfInterestForCurrentSplit(dict_of_metrics_matched_to_subset_vals,subset_1_name,subset_2_name,metrics_for_which_shift_metric_cannot_be_computed_for_orig_split)
         
         
@@ -660,7 +710,7 @@ def getMetric2AllSplitsShiftMetricVals(dict_of_merged_ids_matched_to_raw_res,dic
             ###############
             #Debug:
             if 'R2 (cal)' == metric:
-                print(f'split_name={split_name} - R2(cal) shift-metric = {dict_of_metrics_matched_to_all_splits_shift_metric_vals[metric][split_name]}')
+                logging.info(f'split_name={split_name} - R2(cal) shift-metric = {dict_of_metrics_matched_to_all_splits_shift_metric_vals[metric][split_name]}')
             ##############
     return dict_of_metrics_matched_to_all_splits_shift_metric_vals
 
@@ -709,11 +759,11 @@ def getForAllMetricsOriginalVsRandShiftMetricVals(dict_of_metrics_matched_to_all
     return dict_of_metrics_matched_to_orig_and_rand_shift_metric_vals
 
 
-def compute_shift_metric_p_val(metric_dict_of_orig_and_rand_shift_metric_vals,one_sided_sig_test,expected_sub_1_minus_sub_2_sign,metric,sig_level_perc):
+def compute_shift_metric_p_val(metric_dict_of_orig_and_rand_shift_metric_vals,one_sided_sig_test,expected_sub_1_minus_sub_2_sign,metric,sig_level_perc,p_u=False):
     
     #-----------------
     if pd.isna(metric_dict_of_orig_and_rand_shift_metric_vals['original']):
-        print(f'WARNING: p-value could not be computed for metric = {metric} - setting to np.nan!')
+        logging.info(f'WARNING: p-value could not be computed for metric = {metric} - setting to np.nan!')
         return np.nan
     #-----------------
 
@@ -750,11 +800,27 @@ def compute_shift_metric_p_val(metric_dict_of_orig_and_rand_shift_metric_vals,on
     assert not pd.isna(p_val_calc_ready_orig_shift_metric_val),f'Unexpected for metric = {metric}'
     #----------------
 
-    p_val = len([v for v in p_val_calc_ready_rand_shift_metric_vals if v >= p_val_calc_ready_orig_shift_metric_val])/len(p_val_calc_ready_rand_shift_metric_vals)
-    
+    no_randomly_generated_permutation_test_statistics = len(p_val_calc_ready_rand_shift_metric_vals)
+    no_randomly_generated_permutation_test_statistics_which_are_at_least_as_extreme_as_original = len([v for v in p_val_calc_ready_rand_shift_metric_vals if v >= p_val_calc_ready_orig_shift_metric_val])
+
+    if not p_u:
+        p_val = no_randomly_generated_permutation_test_statistics_which_are_at_least_as_extreme_as_original/no_randomly_generated_permutation_test_statistics
+    else:
+        #####################
+        #Based on notation in https://arxiv.org/abs/1603.05766v1
+        #The unbiased estimate of p does not guarantee control of Type I error at the specified significance level
+        #The estimator p_u guarantees this, at the cost of being conservative (elevated Type II error)
+        #####################
+
+        b = no_randomly_generated_permutation_test_statistics_which_are_at_least_as_extreme_as_original
+        m = no_randomly_generated_permutation_test_statistics
+
+        p_val = (b+1)/(m+1)
+
+
     return p_val
 
-def compute_all_raw_shift_metric_p_vals(dict_of_metrics_matched_to_orig_and_rand_shift_metric_vals,one_sided_sig_test=True,metric_to_expected_sub_1_minus_sub_2_sign=None,metrics_of_interest=None,metrics_for_which_shift_metric_cannot_be_computed_for_orig_split=[],sig_level_perc=5):
+def compute_all_raw_shift_metric_p_vals(dict_of_metrics_matched_to_orig_and_rand_shift_metric_vals,one_sided_sig_test=True,metric_to_expected_sub_1_minus_sub_2_sign=None,metrics_of_interest=None,metrics_for_which_shift_metric_cannot_be_computed_for_orig_split=[],sig_level_perc=5,p_u=False):
     ########################################
     if metrics_of_interest is None: raise Exception('You must specify metrics of interest!')
     assert isinstance(metrics_of_interest,list),metrics_of_interest
@@ -790,7 +856,7 @@ def compute_all_raw_shift_metric_p_vals(dict_of_metrics_matched_to_orig_and_rand
             else:
                 expected_sub_1_minus_sub_2_sign = None
         
-            p_val = compute_shift_metric_p_val(metric_dict_of_orig_and_rand_shift_metric_vals,one_sided_sig_test,expected_sub_1_minus_sub_2_sign,metric,sig_level_perc)
+            p_val = compute_shift_metric_p_val(metric_dict_of_orig_and_rand_shift_metric_vals,one_sided_sig_test,expected_sub_1_minus_sub_2_sign,metric,sig_level_perc,p_u=p_u)
 
             dict_of_metrics_matched_to_p_vals[metric] = p_val
 
@@ -850,7 +916,7 @@ def produceGraphicalSummaries(input_for_graphical_summaries,plot_file_prefix,x_l
         else:
             whiskers_lower_limit = sig_level_perc
         
-        whiskers_percentile_values = [whiskers_lower_limit,(100-whiskers_lower_limit)]
+        whiskers_percentile_values = (float(whiskers_lower_limit),float(100-whiskers_lower_limit))
 
         
         axes_obj = sb.boxplot(x = x_lab, y = y_lab, data = plot_input, hue = legend_lab, palette="muted",whis=whiskers_percentile_values)
@@ -1056,21 +1122,21 @@ def get_dict_of_metrics_matched_to_original_shift_values(dict_of_metrics_matched
 
     return dict_of_metrics_matched_to_original_shift_values
 
-def workflowForOneSetOfRawResults(out_dir,test_set_plus_methods_name,dict_of_raw_subset_results,subset_1_name='Inside',subset_2_name='Outside',type_of_modelling='binary_class',no_rand_splits=100,strat_rand_split_y_name='strat_y',rand_seed=42,metrics_of_interest=None,x_lab='Groups',y_lab='Shift-Metric',legend_lab='Split Basis',sig_level_perc=5,one_sided_sig_test=True,metric_to_expected_sub_1_minus_sub_2_sign=None,create_plots=True,set_p_to_nan_if_metric_cannot_be_computed_for_orig_split=True,conformal_sig_level=0.32,delta_calib_prob=0.05,debug=False):
+def workflowForOneSetOfRawResults(out_dir,test_set_plus_methods_name,dict_of_raw_subset_results,subset_1_name='Inside',subset_2_name='Outside',type_of_modelling='binary_class',no_rand_splits=100,strat_rand_split_y_name='strat_y',rand_seed=42,metrics_of_interest=None,x_lab='Groups',y_lab='Shift-Metric',legend_lab='Split Basis',sig_level_perc=5,one_sided_sig_test=True,metric_to_expected_sub_1_minus_sub_2_sign=None,create_plots=True,set_p_to_nan_if_metric_cannot_be_computed_for_orig_split=True,conformal_sig_level=0.32,delta_calib_prob=0.05,debug=False,p_u=False):
     
     #=======================
     if debug:
-        print(f'dict_of_raw_subset_results={dict_of_raw_subset_results}')
+        logging.info(f'dict_of_raw_subset_results={dict_of_raw_subset_results}')
     #=======================
 
     if set_p_to_nan_if_metric_cannot_be_computed_for_orig_split:
-        metrics_for_which_shift_metric_cannot_be_computed_for_orig_split = get_metrics_for_which_shift_metric_cannot_be_computed_for_orig_split(dict_of_raw_subset_results,subset_1_name,subset_2_name,type_of_modelling,metrics_of_interest,sig_level_of_interest=conformal_sig_level)
+        metrics_for_which_shift_metric_cannot_be_computed_for_orig_split = get_metrics_for_which_shift_metric_cannot_be_computed_for_orig_split(dict_of_raw_subset_results,subset_1_name,subset_2_name,type_of_modelling,metrics_of_interest,sig_level_of_interest=conformal_sig_level,delta_calib_prob=delta_calib_prob)
     else:
         metrics_for_which_shift_metric_cannot_be_computed_for_orig_split = []
     #
     if not len(metrics_of_interest) == len(set(metrics_of_interest).intersection(metrics_for_which_shift_metric_cannot_be_computed_for_orig_split)):
     
-        dict_of_splits_matched_to_subset_ids = getDictOfSplitsMatchedToSubsetIDs(dict_of_raw_subset_results=dict_of_raw_subset_results,subset_1_name=subset_1_name,subset_2_name=subset_2_name,type_of_modelling=type_of_modelling,no_rand_splits=no_rand_splits,strat_rand_split_y_name=strat_rand_split_y_name,rand_seed=rand_seed,delta_calib_prob=delta_calib_prob,metrics_of_interest=metrics_of_interest)
+        dict_of_splits_matched_to_subset_ids = getDictOfSplitsMatchedToSubsetIDs(dict_of_raw_subset_results=dict_of_raw_subset_results,subset_1_name=subset_1_name,subset_2_name=subset_2_name,type_of_modelling=type_of_modelling,no_rand_splits=no_rand_splits,strat_rand_split_y_name=strat_rand_split_y_name,rand_seed=rand_seed,delta_calib_prob=delta_calib_prob,metrics_of_interest=metrics_of_interest,fix_reg_y_dicretization=p_u,skip_certain_permutations_which_could_cause_some_metrics_to_fail=(not p_u))
     
         dict_of_merged_ids_matched_to_raw_res = getDictOfMergedIdsMatched2RawResults(dict_of_raw_subset_results=dict_of_raw_subset_results,type_of_modelling=type_of_modelling)
     
@@ -1090,7 +1156,7 @@ def workflowForOneSetOfRawResults(out_dir,test_set_plus_methods_name,dict_of_raw
 
     dict_of_metrics_matched_to_original_shift_values = get_dict_of_metrics_matched_to_original_shift_values(dict_of_metrics_matched_to_orig_and_rand_shift_metric_vals)
 
-    dict_of_metrics_matched_to_p_vals = compute_all_raw_shift_metric_p_vals(dict_of_metrics_matched_to_orig_and_rand_shift_metric_vals=dict_of_metrics_matched_to_orig_and_rand_shift_metric_vals,one_sided_sig_test=one_sided_sig_test,metric_to_expected_sub_1_minus_sub_2_sign=metric_to_expected_sub_1_minus_sub_2_sign,metrics_of_interest=metrics_of_interest,metrics_for_which_shift_metric_cannot_be_computed_for_orig_split=metrics_for_which_shift_metric_cannot_be_computed_for_orig_split,sig_level_perc=sig_level_perc)
+    dict_of_metrics_matched_to_p_vals = compute_all_raw_shift_metric_p_vals(dict_of_metrics_matched_to_orig_and_rand_shift_metric_vals=dict_of_metrics_matched_to_orig_and_rand_shift_metric_vals,one_sided_sig_test=one_sided_sig_test,metric_to_expected_sub_1_minus_sub_2_sign=metric_to_expected_sub_1_minus_sub_2_sign,metrics_of_interest=metrics_of_interest,metrics_for_which_shift_metric_cannot_be_computed_for_orig_split=metrics_for_which_shift_metric_cannot_be_computed_for_orig_split,sig_level_perc=sig_level_perc,p_u=p_u)
     
     return dict_of_metrics_matched_to_p_vals,dict_of_metrics_matched_to_original_shift_values
 
@@ -1122,7 +1188,7 @@ def workflowForAFamilyOfRawResults(out_dir,dict_for_all_test_sets_of_raw_subset_
                                    metrics_of_interest=None,x_lab='Groups',y_lab='Shift-Metric',legend_lab='Split Basis',sig_level_perc=5,
                                    one_sided_sig_test=True,metric_to_expected_sub_1_minus_sub_2_sign=None,p_vals_table='PVals.csv',
                                    adjusted_p_vals_table_name=None,results_are_obtained_over_multiple_folds_and_or_seeds=False,create_plots=True,
-                                   debug=False, scenarios_with_errors=[],adjust_p_vals=False,set_p_to_nan_if_metric_cannot_be_computed_for_orig_split=True,conformal_sig_level=0.32,delta_calib_prob=0.05,p_val_aggregation_option="conservative_twice_average"):
+                                   debug=True, scenarios_with_errors=[],adjust_p_vals=False,set_p_to_nan_if_metric_cannot_be_computed_for_orig_split=True,conformal_sig_level=0.32,delta_calib_prob=0.05,p_val_aggregation_option="conservative_twice_average",p_u=False):
     #######################################
     #if results_are_obtained_over_multiple_folds_and_or_seeds=False, dict_for_all_test_sets_of_raw_subset_results has the following structure:
     #dict_for_all_test_sets_of_raw_subset_results[test_set_plus_methods_name] = dict_of_raw_subset_results #N.B. The test_set_plus_methods_name could correspond to the results across different datasets for different endpoints if conclusions needed to be made for the AD method across those settings!
@@ -1147,7 +1213,7 @@ def workflowForAFamilyOfRawResults(out_dir,dict_for_all_test_sets_of_raw_subset_
 
     if one_sided_sig_test:
         if not 'one_tail' in os.path.basename(p_vals_table):
-            print(f'WARNING: We should be computing one-tail AD p-values, but p_vals_table={p_vals_table}')
+            logging.info(f'WARNING: We should be computing one-tail AD p-values, but p_vals_table={p_vals_table}')
             p_vals_table = os.path.sep.join([os.path.dirname(p_vals_table),f'one_tail_{os.path.basename(p_vals_table)}'])
         
         if metric_to_expected_sub_1_minus_sub_2_sign is None: raise Exception(f'We need this for one=tail AD p-values: {metric_to_expected_sub_1_minus_sub_2_sign}')
@@ -1165,12 +1231,12 @@ def workflowForAFamilyOfRawResults(out_dir,dict_for_all_test_sets_of_raw_subset_
         ###############
         # Debugging:
         if debug:
-            print(f"test_set_plus_methods_name={test_set_plus_methods_name}")
+            logging.info(f"test_set_plus_methods_name={test_set_plus_methods_name}")
             if not 0 == len(scenarios_with_errors):
                 if not test_set_plus_methods_name in scenarios_with_errors:
                     continue
                 else:
-                    print("Found problem scenario.")
+                    logging.info("Found problem scenario.")
 
         ###############
         if not results_are_obtained_over_multiple_folds_and_or_seeds:
@@ -1178,7 +1244,7 @@ def workflowForAFamilyOfRawResults(out_dir,dict_for_all_test_sets_of_raw_subset_
         else:
             dict_for_all_folds_and_or_model_seeds_of_raw_subset_results = dict_for_all_test_sets_of_raw_subset_results[test_set_plus_methods_name]
             
-            dict_of_metrics_matched_to_p_vals,overall_dict_of_metrics_matched_to_p_vals_metadata = workflowForOneSetOfCrossValidationAndOrMultipleSeedsResults(dict_for_all_folds_and_or_model_seeds_of_raw_subset_results,out_dir,test_set_plus_methods_name,subset_1_name,subset_2_name,type_of_modelling,no_rand_splits,strat_rand_split_y_name,rand_seed,metrics_of_interest,x_lab,y_lab,legend_lab,sig_level_perc,one_sided_sig_test,metric_to_expected_sub_1_minus_sub_2_sign,create_plots,set_p_to_nan_if_metric_cannot_be_computed_for_orig_split,conformal_sig_level=conformal_sig_level,delta_calib_prob=delta_calib_prob,debug=debug,p_val_aggregation_option=p_val_aggregation_option)
+            dict_of_metrics_matched_to_p_vals,overall_dict_of_metrics_matched_to_p_vals_metadata = workflowForOneSetOfCrossValidationAndOrMultipleSeedsResults(dict_for_all_folds_and_or_model_seeds_of_raw_subset_results,out_dir,test_set_plus_methods_name,subset_1_name,subset_2_name,type_of_modelling,no_rand_splits,strat_rand_split_y_name,rand_seed,metrics_of_interest,x_lab,y_lab,legend_lab,sig_level_perc,one_sided_sig_test,metric_to_expected_sub_1_minus_sub_2_sign,create_plots,set_p_to_nan_if_metric_cannot_be_computed_for_orig_split,conformal_sig_level=conformal_sig_level,delta_calib_prob=delta_calib_prob,debug=debug,p_val_aggregation_option=p_val_aggregation_option,p_u=p_u)
         
         
         test_set_plus_methods_name_matched_to_dict_of_metrics_matched_to_p_vals[test_set_plus_methods_name] = dict_of_metrics_matched_to_p_vals
@@ -1215,7 +1281,7 @@ def has_wrong_sign(average_shift_metric_val,metric,metric_to_expected_sub_1_minu
     else:
         return False
 
-def workflowForOneSetOfCrossValidationAndOrMultipleSeedsResults(dict_for_all_folds_and_or_model_seeds_of_raw_subset_results,out_dir,test_set_plus_methods_name,subset_1_name,subset_2_name,type_of_modelling,no_rand_splits,strat_rand_split_y_name,rand_seed,metrics_of_interest,x_lab,y_lab,legend_lab,sig_level_perc,one_sided_sig_test,metric_to_expected_sub_1_minus_sub_2_sign,create_plots=True,set_p_to_nan_if_metric_cannot_be_computed_for_orig_split=True,conformal_sig_level=0.32,delta_calib_prob=0.05,debug=False,p_val_aggregation_option="conservative_twice_average"):
+def workflowForOneSetOfCrossValidationAndOrMultipleSeedsResults(dict_for_all_folds_and_or_model_seeds_of_raw_subset_results,out_dir,test_set_plus_methods_name,subset_1_name,subset_2_name,type_of_modelling,no_rand_splits,strat_rand_split_y_name,rand_seed,metrics_of_interest,x_lab,y_lab,legend_lab,sig_level_perc,one_sided_sig_test,metric_to_expected_sub_1_minus_sub_2_sign,create_plots=True,set_p_to_nan_if_metric_cannot_be_computed_for_orig_split=True,conformal_sig_level=0.32,delta_calib_prob=0.05,debug=False,p_val_aggregation_option="conservative_twice_average",p_u=False):
     ########################################################
     #Consider a scenario in which multiple, random train/test splits of the dataset are performed, e.g. as per cross-validation, and/or multiple random seeds are chosen to generate the modelling results. 
     #For each of those sub-scenarios, i.e. a given train/test split and/or random seed value, we can compute a p-value for each of the shift-metrics.
@@ -1233,7 +1299,7 @@ def workflowForOneSetOfCrossValidationAndOrMultipleSeedsResults(dict_for_all_fol
     for fold_and_or_model_seed_combination in dict_for_all_folds_and_or_model_seeds_of_raw_subset_results.keys():
         #=======================
         if debug:
-            print(f'fold_and_or_model_seed_combination={fold_and_or_model_seed_combination}')
+            logging.info(f'fold_and_or_model_seed_combination={fold_and_or_model_seed_combination}')
         #======================
 
         dict_of_raw_subset_results = dict_for_all_folds_and_or_model_seeds_of_raw_subset_results[fold_and_or_model_seed_combination]
@@ -1242,7 +1308,7 @@ def workflowForOneSetOfCrossValidationAndOrMultipleSeedsResults(dict_for_all_fol
         current_test_set_plus_methods_name = '{}_{}'.format(test_set_plus_methods_name,fold_and_or_model_seed_combination) #Original test_set_plus_methods_name denotes the dataset and a type of splitting (e.g. random or clustered)
         
         
-        dict_of_metrics_matched_to_p_vals,dict_of_metrics_matched_to_original_shift_values = workflowForOneSetOfRawResults(out_dir,current_test_set_plus_methods_name,dict_of_raw_subset_results,subset_1_name,subset_2_name,type_of_modelling,no_rand_splits,strat_rand_split_y_name,rand_seed,metrics_of_interest,x_lab,y_lab,legend_lab,sig_level_perc,one_sided_sig_test,metric_to_expected_sub_1_minus_sub_2_sign,create_plots,set_p_to_nan_if_metric_cannot_be_computed_for_orig_split,conformal_sig_level=conformal_sig_level,delta_calib_prob=delta_calib_prob,debug=debug)
+        dict_of_metrics_matched_to_p_vals,dict_of_metrics_matched_to_original_shift_values = workflowForOneSetOfRawResults(out_dir,current_test_set_plus_methods_name,dict_of_raw_subset_results,subset_1_name,subset_2_name,type_of_modelling,no_rand_splits,strat_rand_split_y_name,rand_seed,metrics_of_interest,x_lab,y_lab,legend_lab,sig_level_perc,one_sided_sig_test,metric_to_expected_sub_1_minus_sub_2_sign,create_plots,set_p_to_nan_if_metric_cannot_be_computed_for_orig_split,conformal_sig_level=conformal_sig_level,delta_calib_prob=delta_calib_prob,debug=debug,p_u=p_u)
         
         for metric in dict_of_metrics_matched_to_p_vals.keys():
             dict_of_metrics_matched_to_p_vals_list[metric].append(dict_of_metrics_matched_to_p_vals[metric])
@@ -1271,11 +1337,11 @@ def workflowForOneSetOfCrossValidationAndOrMultipleSeedsResults(dict_for_all_fol
         overall_dict_of_metrics_matched_to_p_vals_metadata[metric]['average_shift_metric_val_has_wrong_sign'] = average_shift_metric_val_has_wrong_sign
         
         if debug:
-            print(f'metric={metric}')
-            print(f'Contents of overall_dict_of_metrics_matched_to_p_vals_metadata :')
+            logging.info(f'metric={metric}')
+            logging.info(f'Contents of overall_dict_of_metrics_matched_to_p_vals_metadata :')
             for extra_info in overall_dict_of_metrics_matched_to_p_vals_metadata[metric].keys():
-                print(f'{extra_info} : value = {overall_dict_of_metrics_matched_to_p_vals_metadata[metric][extra_info]}')
-                print(f'{extra_info} : type = {type(overall_dict_of_metrics_matched_to_p_vals_metadata[metric][extra_info])}')
+                logging.info(f'{extra_info} : value = {overall_dict_of_metrics_matched_to_p_vals_metadata[metric][extra_info]}')
+                logging.info(f'{extra_info} : type = {type(overall_dict_of_metrics_matched_to_p_vals_metadata[metric][extra_info])}')
         #########################
         
     return overall_dict_of_metrics_matched_to_p_vals,overall_dict_of_metrics_matched_to_p_vals_metadata
